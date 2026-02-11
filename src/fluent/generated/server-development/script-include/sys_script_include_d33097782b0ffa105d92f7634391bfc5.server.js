@@ -16,6 +16,7 @@ MetricsQueryEngine.prototype = {
     
     loadMetricTypeCache: function() {
         var metricTypeGR = new GlideRecord('sa_metric_type');
+        metricTypeGR.setLimit(1000);
         metricTypeGR.query();
         
         while (metricTypeGR.next()) {
@@ -130,64 +131,63 @@ MetricsQueryEngine.prototype = {
     
     /**
      * Get filtered ACC agents - supports CI sys_id filtering
-     * ⬅️ FIXED: Changed integer 0 to string '0' for scoped app compatibility
+     * FIXED: Eliminated N+1 query problem by using dot-walking to access related record fields
      */
     _getFilteredAgents: function(filters) {
         var agents = [];
-        
+
         var agentInfo = new GlideRecord('sn_agent_ci_extended_info');
-        agentInfo.addQuery('data_collection', '0');  // ⬅️ FIXED: String instead of integer
-        agentInfo.addQuery('status', '0');           // ⬅️ FIXED: String instead of integer
+        agentInfo.addQuery('data_collection', '0');
+        agentInfo.addQuery('status', '0');
         agentInfo.addQuery('running_checks_num', '>', 2);
-        
+
         // Filter by CI sys_ids if provided
         if (filters.ciSysIds && filters.ciSysIds.length > 0) {
             agentInfo.addQuery('cmdb_ci', 'IN', filters.ciSysIds.join(','));
         }
-        
+
         agentInfo.setLimit(filters.maxAgents || 50);
         agentInfo.query();
-        
+
         while (agentInfo.next()) {
             var cmdbCiSysId = agentInfo.getValue('cmdb_ci');
             if (!cmdbCiSysId) continue;
-            
-            var ciRecord = new GlideRecord('cmdb_ci');
-            if (!ciRecord.get(cmdbCiSysId)) continue;
-            
-            var ciName = ciRecord.getValue('name');
-            var ciClass = ciRecord.getValue('sys_class_name');
-            
+
+            // Use dot-walking to access related record fields directly
+            // This eliminates the need for additional queries
+            var ciName = agentInfo.cmdb_ci.name.toString();
+            var ciClass = agentInfo.cmdb_ci.sys_class_name.toString();
+
+            // Skip if CI doesn't exist or is invalid
+            if (!ciName || !ciClass) continue;
+
             var platform = this._getPlatformFromCIClass(ciClass);
-            
+
+            // Use dot-walking for support group
             var supportGroupName = 'N/A';
-            var supportGroupSysId = ciRecord.getValue('support_group');
-            if (supportGroupSysId) {
-                var sgGR = new GlideRecord('sys_user_group');
-                if (sgGR.get(supportGroupSysId)) {
-                    supportGroupName = sgGR.getValue('name');
-                }
+            if (agentInfo.cmdb_ci.support_group) {
+                supportGroupName = agentInfo.cmdb_ci.support_group.name.toString() || 'N/A';
             }
-            
+
+            // Use dot-walking for location
             var locationName = 'N/A';
-            var locationSysId = ciRecord.getValue('location');
-            if (locationSysId) {
-                var locGR = new GlideRecord('cmn_location');
-                if (locGR.get(locationSysId)) {
-                    locationName = locGR.getValue('name');
-                }
+            if (agentInfo.cmdb_ci.location) {
+                locationName = agentInfo.cmdb_ci.location.name.toString() || 'N/A';
             }
-            
+
+            // Use dot-walking for IP address from CI record
+            var ipAddress = agentInfo.cmdb_ci.ip_address.toString() || agentInfo.getValue('ip_address');
+
             // Apply filters
             if (filters.platform) {
                 var filterPlatform = filters.platform.toLowerCase();
                 if (filterPlatform === 'windows' && platform !== 'Windows') continue;
                 if (filterPlatform === 'linux' && platform !== 'Linux') continue;
             }
-            
+
             if (filters.ciName && ciName !== filters.ciName) continue;
             if (filters.ciClass && ciClass !== filters.ciClass) continue;
-            
+
             agents.push({
                 name: agentInfo.getValue('name'),
                 agentId: agentInfo.getValue('agent_id'),
@@ -197,10 +197,10 @@ MetricsQueryEngine.prototype = {
                 platform: platform,
                 supportGroup: supportGroupName,
                 location: locationName,
-                ipAddress: agentInfo.getValue('ip_address')
+                ipAddress: ipAddress
             });
         }
-        
+
         return agents;
     },
     
@@ -231,49 +231,83 @@ MetricsQueryEngine.prototype = {
         if (filters.metricCategory) {
             dashboardMetadata.addQuery('title', 'CONTAINS', filters.metricCategory);
         }
-        
+
+        dashboardMetadata.setLimit(100);
         dashboardMetadata.query();
-        
+
+        // First pass: collect all sys_ids and their categories
+        var sysIdToCategory = {};
+        var allSysIds = [];
+
         while (dashboardMetadata.next()) {
             var category = dashboardMetadata.getValue('title');
             var sourceMetricsSysIds = dashboardMetadata.getValue('source_metrics_types') || '';
-            
+
             if (sourceMetricsSysIds) {
                 var sysIds = sourceMetricsSysIds.split(',');
-                
+
                 for (var i = 0; i < sysIds.length; i++) {
                     var sysId = sysIds[i].trim();
-                    
-                    var sourceMetricType = new GlideRecord('sa_source_metric_type');
-                    if (sourceMetricType.get(sysId)) {
-                        var metricType = sourceMetricType.getValue('source_metric_type');
-                        var displayName = sourceMetricType.getValue('display_name') || metricType;
-                        var unit = sourceMetricType.getValue('unit') || '';
-                        
-                        var tinyName = this.metricTypeCache[metricType];
-                        
-                        if (tinyName) {
-                            metricDefs.push({
-                                metricType: metricType,
-                                tinyName: tinyName,
-                                displayName: displayName,
-                                unit: unit,
-                                category: category
-                            });
-                        }
+                    if (sysId) {
+                        sysIdToCategory[sysId] = category;
+                        allSysIds.push(sysId);
                     }
                 }
             }
         }
-        
+
+        // Batch load all source metric types with a single query
+        if (allSysIds.length > 0) {
+            var sourceMetricTypeMap = {};
+
+            var sourceMetricType = new GlideRecord('sa_source_metric_type');
+            sourceMetricType.addQuery('sys_id', 'IN', allSysIds.join(','));
+            sourceMetricType.query();
+
+            while (sourceMetricType.next()) {
+                var sysId = sourceMetricType.getUniqueValue();
+                sourceMetricTypeMap[sysId] = {
+                    metricType: sourceMetricType.getValue('source_metric_type'),
+                    displayName: sourceMetricType.getValue('display_name'),
+                    unit: sourceMetricType.getValue('unit') || ''
+                };
+            }
+
+            // Build metric definitions using the cached data
+            for (var j = 0; j < allSysIds.length; j++) {
+                var sysId = allSysIds[j];
+                var metricData = sourceMetricTypeMap[sysId];
+
+                if (metricData) {
+                    var metricType = metricData.metricType;
+                    var displayName = metricData.displayName || metricType;
+                    var unit = metricData.unit;
+                    var category = sysIdToCategory[sysId];
+
+                    var tinyName = this.metricTypeCache[metricType];
+
+                    if (tinyName) {
+                        metricDefs.push({
+                            metricType: metricType,
+                            tinyName: tinyName,
+                            displayName: displayName,
+                            unit: unit,
+                            category: category
+                        });
+                    }
+                }
+            }
+        }
+
         return metricDefs;
     },
     
     _getResources: function(ciSysId) {
         var resources = [];
-        
+
         var resourceGR = new GlideRecord('ci_resource_hardware');
         resourceGR.addQuery('cmdb_ci', ciSysId);
+        resourceGR.setLimit(50);
         resourceGR.query();
         
         while (resourceGR.next()) {
