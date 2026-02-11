@@ -49,6 +49,14 @@ declare global {
                         table: 'sys_scope_privilege'
                         id: '9af11f302b4ffa105d92f7634391bf81'
                     }
+                    a4d4933c2b4ffa105d92f7634391bf1d: {
+                        table: 'sys_security_acl'
+                        id: 'a4d4933c2b4ffa105d92f7634391bf1d'
+                    }
+                    b28453f82b4ffa105d92f7634391bf59: {
+                        table: 'sys_script_include'
+                        id: 'b28453f82b4ffa105d92f7634391bf59'
+                    }
                     bom_json: {
                         table: 'sys_module'
                         id: '9b3815b15b94450b8ad12e775f5e24b4'
