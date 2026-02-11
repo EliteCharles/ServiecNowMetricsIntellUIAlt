@@ -49,9 +49,17 @@ declare global {
                         table: 'sys_scope_privilege'
                         id: '9af11f302b4ffa105d92f7634391bf81'
                     }
+                    a125db7c2b4ffa105d92f7634391bfcf: {
+                        table: 'sys_scope_privilege'
+                        id: 'a125db7c2b4ffa105d92f7634391bfcf'
+                    }
                     a4d4933c2b4ffa105d92f7634391bf1d: {
                         table: 'sys_security_acl'
                         id: 'a4d4933c2b4ffa105d92f7634391bf1d'
+                    }
+                    a925db7c2b4ffa105d92f7634391bf7c: {
+                        table: 'sys_scope_privilege'
+                        id: 'a925db7c2b4ffa105d92f7634391bf7c'
                     }
                     b28453f82b4ffa105d92f7634391bf59: {
                         table: 'sys_script_include'
