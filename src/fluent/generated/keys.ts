@@ -154,6 +154,45 @@ declare global {
                             }
                         }
                     },
+                    {
+                        table: 'sys_security_acl_role'
+                        id: 'ae150c412b4b3e105d92f7634391bfce'
+                        key: {
+                            sys_security_acl: '6a150c412b4b3e105d92f7634391bfb1'
+                            sys_user_role: {
+                                id: 'ed2c2a31eb12110045e1a5115206feaf'
+                                key: {
+                                    name: 'evt_mgmt_user'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        table: 'sys_security_acl_role'
+                        id: 'afb1c0c12b0b3e105d92f7634391bf9b'
+                        key: {
+                            sys_security_acl: '6bb1c0c12b0b3e105d92f7634391bf8b'
+                            sys_user_role: {
+                                id: 'ed2c2a31eb12110045e1a5115206feaf'
+                                key: {
+                                    name: 'evt_mgmt_user'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        table: 'sys_security_acl_role'
+                        id: 'd212cc052b0b3e105d92f7634391bf04'
+                        key: {
+                            sys_security_acl: 'de124c052b0b3e105d92f7634391bff1'
+                            sys_user_role: {
+                                id: 'ed2c2a31eb12110045e1a5115206feaf'
+                                key: {
+                                    name: 'evt_mgmt_user'
+                                }
+                            }
+                        }
+                    },
                 ]
             }
         }

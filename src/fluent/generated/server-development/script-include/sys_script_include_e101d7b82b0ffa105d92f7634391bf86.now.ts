@@ -10,5 +10,5 @@ ScriptInclude({
     sandboxCallable: false,
     accessibleFrom: 'public',
     active: true,
-    protectionPolicy: 'read',
+    protectionPolicy: '',
 })
