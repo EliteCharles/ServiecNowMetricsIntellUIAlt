@@ -2226,6 +2226,7 @@ var Dashboard = {
         loading: false,
         openDropdown: null,
         autoRefresh: false,
+        autoRefreshWasPaused: false, // ⬅️ Track if auto-refresh was paused due to page visibility
         showAnomalies: true,   // ⬅️ enabled by default
         showAlerts: false,     // ⬅️ disabled by default (not shown on graph)
         isAlertsExpanded: false, // ⬅️ CHANGED - alerts section collapsed by default
@@ -2276,7 +2277,20 @@ var Dashboard = {
         data: null,
         searchTimeout: null
     },
-    
+
+    // HTML escaping function to prevent XSS attacks
+    escapeHtml: function(text) {
+        if (!text) return text;
+        var map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    },
+
     // THEME-AWARE COLOR PALETTES - High Contrast for Multi-Host Visibility
     colorPalettes: {
         // Default/Infinite Blue Theme - High Contrast Colors
@@ -2607,6 +2621,30 @@ var Dashboard = {
         if (savedAlertsExpanded !== null) {
             this.data.isAlertsExpanded = (savedAlertsExpanded === 'true');
         }
+
+        // ⬅️ Page Visibility API optimization - Pause auto-refresh when page is hidden
+        document.addEventListener("visibilitychange", function() {
+            if (document.hidden) {
+                // Page is hidden - pause auto-refresh if running
+                if (Dashboard.data.autoRefresh && Dashboard.intervals.data) {
+                    console.log("[DASHBOARD] Page hidden - pausing auto-refresh");
+                    clearInterval(Dashboard.intervals.data);
+                    Dashboard.intervals.data = null;
+                    // Store that we should resume when visible again
+                    Dashboard.data.autoRefreshWasPaused = true;
+                }
+            } else {
+                // Page is visible - resume auto-refresh if it was running
+                if (Dashboard.data.autoRefresh && Dashboard.data.autoRefreshWasPaused) {
+                    console.log("[DASHBOARD] Page visible - resuming auto-refresh");
+                    Dashboard.intervals.data = setInterval(function() {
+                        console.log("[DASHBOARD] Auto-refreshing data...");
+                        Dashboard.loadData();
+                    }, 30000);
+                    Dashboard.data.autoRefreshWasPaused = false;
+                }
+            }
+        });
         
         this.render();
         this.updateClock();
@@ -3024,7 +3062,12 @@ applyFilters: function() {
             ciClass: original.ciClass,
             unit: original.unit,
             hosts: original.hosts ? original.hosts.slice() : [],
-            data: original.data ? JSON.parse(JSON.stringify(original.data)) : [],
+            data: original.data ? original.data.map(function(item) {
+                return {
+                    timestamp: item.timestamp,
+                    values: item.values ? item.values.slice() : []
+                };
+            }) : [],
             location: original.location,
             supportGroup: original.supportGroup
         };
@@ -3059,7 +3102,7 @@ applyFilters: function() {
                 
                 if (shouldShow && this.data.filters.searchQuery && this.data.filters.searchQuery.trim() !== '') {
                     var query = this.data.filters.searchQuery.toLowerCase().trim();
-                    var words = query.split(/\\s+/);
+                    var words = query.split(/\s+/);
                     
                     for (var w = 0; w < words.length; w++) {
                         var word = words[w];
@@ -3390,6 +3433,7 @@ applyFilters: function() {
 // ============================================================================
 
     render: function() {
+        this.charts = {};
         document.getElementById('header-section').innerHTML = this.renderHeader();
         document.getElementById('filter-section').innerHTML = this.renderFilters();
         document.getElementById('legend-section').innerHTML = this.renderLegend();
@@ -3837,7 +3881,7 @@ applyFilters: function() {
             var uniqueSources = this.getUniqueAlertSources(filteredAlerts);
             for (var s = 0; s < uniqueSources.length; s++) {
                 var selected = this.data.alertFilters.source === uniqueSources[s] ? ' selected' : '';
-                parts.push('<option value="' + uniqueSources[s] + '"' + selected + '>' + uniqueSources[s] + '</option>');
+                parts.push('<option value="' + this.escapeHtml(uniqueSources[s]) + '"' + selected + '>' + this.escapeHtml(uniqueSources[s]) + '</option>');
             }
             parts.push('</select>');
             parts.push('</div>');
@@ -3905,7 +3949,7 @@ applyFilters: function() {
             var uniqueTypes = this.getUniqueAlertTypes(filteredAlerts);
             for (var t = 0; t < uniqueTypes.length; t++) {
                 var selected = this.data.alertFilters.type === uniqueTypes[t] ? ' selected' : '';
-                parts.push('<option value="' + uniqueTypes[t] + '"' + selected + '>' + uniqueTypes[t] + '</option>');
+                parts.push('<option value="' + this.escapeHtml(uniqueTypes[t]) + '"' + selected + '>' + this.escapeHtml(uniqueTypes[t]) + '</option>');
             }
             parts.push('</select>');
             parts.push('</div>');
@@ -3941,11 +3985,11 @@ applyFilters: function() {
                 
                 // Created timestamp
                 var createdTime = this.formatAlertTimestamp(alert.sys_created_on);
-                parts.push('<td class="alert-timestamp">' + createdTime + '</td>');
+                parts.push('<td class="alert-timestamp">' + this.escapeHtml(createdTime) + '</td>');
                 
                 // Alert number (clickable link) - Opens in new tab with SOW URL format
                 var alertUrl = '/now/sow/record/em_alert/' + alert.sys_id + '/params/selected-tab-index/1/selected-tab/id%3Dcl1kajg2y015e3f71kyb7f5qr';
-                parts.push('<td><a href="' + alertUrl + '" class="alert-number" target="_blank">' + alert.number + '</a></td>');
+                parts.push('<td><a href="' + alertUrl + '" class="alert-number" target="_blank">' + this.escapeHtml(alert.number) + '</a></td>');
                 
                 // ⬅️ State - Plain text (no pill)
                 var stateText = alert.state || 'Unknown';
@@ -3958,8 +4002,8 @@ applyFilters: function() {
                     if (stateText === 'Unknown') stateText = 'Open';
                 }
                 
-                parts.push('<td class="alert-state-text">' + stateText + '</td>');
-                
+                parts.push('<td class="alert-state-text">' + this.escapeHtml(stateText) + '</td>');
+
                 // Severity badge
                 var sevBadgeClass = 'severity-badge ';
                 if (alert.severity === 1) sevBadgeClass += 'severity-critical';
@@ -3967,11 +4011,11 @@ applyFilters: function() {
                 else if (alert.severity === 3) sevBadgeClass += 'severity-minor';
                 else if (alert.severity === 4) sevBadgeClass += 'severity-warning';
                 else sevBadgeClass += 'severity-info';
-                
-                parts.push('<td><span class="' + sevBadgeClass + '">' + (alert.severity_label || 'Info') + '</span></td>');
+
+                parts.push('<td><span class="' + sevBadgeClass + '">' + this.escapeHtml(alert.severity_label || 'Info') + '</span></td>');
                 
                 // Source
-                parts.push('<td class="alert-source">' + (alert.source || 'N/A') + '</td>');
+                parts.push('<td class="alert-source">' + this.escapeHtml(alert.source || 'N/A') + '</td>');
                 
                 // CI Name - Hyperlink to CI record in SOW
                 // Check for various possible field name combinations
@@ -3981,14 +4025,14 @@ applyFilters: function() {
                 
                 if (ciSysId && ciClass) {
                     var ciUrl = '/now/sow/record/' + ciClass + '/' + ciSysId;
-                    parts.push('<td><a href="' + ciUrl + '" class="alert-ci-link" target="_blank">' + ciName + '</a></td>');
+                    parts.push('<td><a href="' + ciUrl + '" class="alert-ci-link" target="_blank">' + this.escapeHtml(ciName) + '</a></td>');
                 } else {
-                    parts.push('<td class="alert-ci-name">' + ciName + '</td>');
+                    parts.push('<td class="alert-ci-name">' + this.escapeHtml(ciName) + '</td>');
                 }
                 
                 // Description - word wrapped
                 var description = alert.short_description || alert.description || 'N/A';
-                parts.push('<td class="alert-description" title="' + (alert.short_description || '') + '">' + description + '</td>');
+                parts.push('<td class="alert-description" title="' + this.escapeHtml(alert.short_description || '') + '">' + this.escapeHtml(description) + '</td>');
                 
                 // Group column (uses group_source field with display value)
                 var groupSourceValue = alert.group_source || '';
@@ -4014,21 +4058,21 @@ applyFilters: function() {
                         groupSourceLabel = groupSourceMap[groupSourceValue];
                     }
                 }
-                parts.push('<td class="alert-group">' + groupSourceLabel + '</td>');
+                parts.push('<td class="alert-group">' + this.escapeHtml(groupSourceLabel) + '</td>');
                 
                 // ⬅️ NEW - Parent column (formatted like alert number with hyperlink)
                 if (alert.parent && alert.parent_number) {
                     var parentUrl = '/now/sow/record/em_alert/' + alert.parent + '/params/selected-tab-index/1/selected-tab/id%3Dcl1kajg2y015e3f71kyb7f5qr';
-                    parts.push('<td><a href="' + parentUrl + '" class="alert-parent" target="_blank">' + alert.parent_number + '</a></td>');
+                    parts.push('<td><a href="' + parentUrl + '" class="alert-parent" target="_blank">' + this.escapeHtml(alert.parent_number) + '</a></td>');
                 } else {
                     parts.push('<td class="alert-parent">-</td>');
                 }
                 
                 // Type column
-                parts.push('<td class="alert-type">' + (alert.type || 'N/A') + '</td>');
-                
+                parts.push('<td class="alert-type">' + this.escapeHtml(alert.type || 'N/A') + '</td>');
+
                 // Metric Name (after type, word-wrapped, smaller width)
-                parts.push('<td class="alert-metric">' + (alert.metric_name || 'N/A') + '</td>');
+                parts.push('<td class="alert-metric">' + this.escapeHtml(alert.metric_name || 'N/A') + '</td>');
                 
                 // Event Count
                 parts.push('<td><span class="event-count-badge">' + (alert.event_count || 1) + '</span></td>');
