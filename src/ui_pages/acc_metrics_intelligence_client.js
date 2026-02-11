@@ -3112,7 +3112,7 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
     if (patterns.timeRange && patterns.timeRange.earliest && patterns.timeRange.latest) {
         var startTime = this._formatAlertTime(patterns.timeRange.earliest);
         var endTime = this._formatAlertTime(patterns.timeRange.latest);
-        timeRange = 'Alerts: ' + startTime + ' – ' + endTime;
+        timeRange = 'Alerts: ' + startTime + ' - ' + endTime;
     }
     
     var summaryText = '';
@@ -3275,7 +3275,7 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
             if (match) {
                 var startTime = match[1].replace(/\s*(PST|EST|CST|MST|UTC)/gi, '').trim();
                 var endTime = match[2].replace(/\s*(PST|EST|CST|MST|UTC)/gi, '').trim();
-                parts.push('Alerts: ' + startTime + ' – ' + endTime);
+                parts.push('Alerts: ' + startTime + ' - ' + endTime);
             }
         } else if (hasAlerts) {
             parts.push(serverData.alertSummary.total + ' alerts occurred');
@@ -4886,7 +4886,7 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
         html += '<div style="margin-bottom: 8px;">';
         html += '<span style="color: #7D8791; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Normal Range</span><br>';
         html += '<span style="color: #3DD68C; font-size: 12px; font-weight: 500;">' + lowerBound + '</span>';
-        html += '<span style="color: #7D8791; font-size: 12px;"> – </span>';
+        html += '<span style="color: #7D8791; font-size: 12px;"> - </span>';
         html += '<span style="color: #3DD68C; font-size: 12px; font-weight: 500;">' + upperBound + '</span>';
         html += '</div>';
         
