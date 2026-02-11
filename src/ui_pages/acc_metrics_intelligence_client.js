@@ -904,12 +904,12 @@ loadAIInsights: function() {
     console.log('[ACC] Top issues:', metricsSummary.topIssues.length);
     
     // Call ACCMetricsAIAnalyzerAjax
-    var ga = new GlideAjax('ACCMetricsAIAnalyzerAjax');
-    ga.addParam('sysparm_name', 'analyzeMetrics');
-    
-    // *** FIX: Changed from 'sysparm_metrics_summary' to 'sysparm_metrics' ***
+    var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+    ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
+
+    // Pass metrics for analysis
     ga.addParam('sysparm_metrics', JSON.stringify(metricsSummary));
-    ga.addParam('sysparm_timeRange', this.data.filters.timeRange);
+    ga.addParam('sysparm_time_range', this.data.filters.timeRange);
     
     // *** NEW: Pass alerts for alert-metric correlation ***
     if (this.data.alerts && this.data.alerts.length > 0) {
@@ -2034,8 +2034,9 @@ getFilteredCINames: function() {
     
     _fetchCIDetails: function(ciSysId, callback) {
         var self = this;
-        var ga = new GlideAjax('ACCMetricsAIAnalyzerAjax');
-        ga.addParam('sysparm_name', 'ajaxGetCIDetails');
+        // Query CMDB directly for CI details
+        var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+        ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
         ga.addParam('sysparm_ci_sys_id', ciSysId);
         
         ga.getXMLAnswer(function(answer) {
@@ -2162,8 +2163,8 @@ _fetchSREInsights: function(ciSysId) {
     console.log('[SRE] - Metrics:', simplifiedMetrics.length);
     console.log('[SRE] - Time Range:', timeRange);
     
-    var ga = new GlideAjax('ACCMetricsAIAnalyzerAjax');
-    ga.addParam('sysparm_name', 'ajaxGetSREInsights');
+    var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+    ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
     ga.addParam('sysparm_ci_sys_id', ciSysId);
     ga.addParam('sysparm_time_range', timeRange);
     ga.addParam('sysparm_metrics', metricsJson);
