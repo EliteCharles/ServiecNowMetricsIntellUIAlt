@@ -1,4 +1,4 @@
-// UI Page Client Script: dynatrace_metrics_genai
+// UI Page Client Script: acc_metrics_intelligence
 
 // ============================================================================
 // PART 1 of 3: Core Dashboard Object, Data, Initialization & Loading
@@ -10,9 +10,9 @@
     document.documentElement.setAttribute('data-theme', savedTheme);
 })();
 
-// Dynatrace Metrics Dashboard v2 - Uses DT_MetricsAPIHandlerv2
+// ACC Metrics Intelligence Dashboard - AI-Powered Analysis
 // With Chart Types, Card Resizing, Gradient Area Charts, Y-Axis Headroom, Proportional Scaling, Professional Themes
-console.log('[ACC] Initializing Dynatrace Metrics Dashboard v2...');
+console.log('[ACC] Initializing ACC Metrics Intelligence Dashboard...');
 
 var Dashboard = {
         data: {
@@ -22,14 +22,13 @@ var Dashboard = {
             anomalies: [],
             aiInsights: null,  // ⬅️ NEW - Stores AI analysis results
             filters: {
-            timeRange: '2h',  // ⬅️ CHANGED - Default to 2h for Dynatrace
-            columns: 4, 
-            ciClass: 'All', 
-            ciNames: [], 
+            timeRange: '2h',
+            columns: 4,
+            ciClass: 'All',
+            ciNames: [],
             metricNames: [],
             searchQuery: '',
-            ciSysIds: [],
-            dtEntities: ''    // ⬅️ NEW - Dynatrace entity string (dtEntityId||ci_sys_id)
+            ciSysIds: []
         },
         loading: false,
         openDropdown: null,
@@ -59,7 +58,7 @@ var Dashboard = {
             active: false,
             startTime: null,
             endTime: null,
-            originalTimeRange: '2h'  // ⬅️ CHANGED - Default to 2h
+            originalTimeRange: '2h'
         }
     },
     
@@ -157,14 +156,6 @@ var Dashboard = {
                 return id.trim(); 
             });
             console.log('[ACC] URL param: ci_sys_ids =', this.data.filters.ciSysIds);
-        }
-        
-        // ⬅️ NEW - Parse Dynatrace entity parameter (dtEntityId||ci_sys_id format)
-        var dtEntities = urlParams.get('sysparm_dt_entities');
-        if (dtEntities) {
-            this.data.filters.dtEntities = dtEntities;
-            console.log('[ACC] URL param: dt_entities =', dtEntities);
-            console.log('[ACC] Using Dynatrace v2 API with hybrid entity format');
         }
         
         var startTime = urlParams.get('sysparm_start_time');
@@ -803,168 +794,83 @@ toggleShowNowAssist: function() {
         this.updateUI();
     },
     
- // ⬅️ UPDATED - Calls DT_MetricsAPIHandlerv2 (Global scope)
 loadData: function() {
-    console.log('[ACC] Loading data via DT_MetricsAPIHandlerv2...');
+    console.log('[ACC] Loading data via MetricsQueryEngineAjax...');
     this.data.loading = true;
     this.updateUI();
-    
+
     var self = this;
-    
-    // ⬅️ UPDATED - Use DT_MetricsAPIHandlerv2 (Global scope)
-    var ga = new GlideAjax('DT_MetricsAPIHandlerv2');
-    ga.addParam('sysparm_name', 'queryMetrics');  // ⬅️ UPDATED - Use queryMetrics method
+
+    // Call ACC Metrics Query Engine
+    var ga = new GlideAjax('x_snc_metricintelp.MetricsQueryEngineAjax');
+    ga.addParam('sysparm_name', 'getMetricsWithInsights');
     ga.addParam('sysparm_time_range', this.data.filters.timeRange);
-    
+
     // Pass CI class filter if set
     if (this.data.filters.ciClass && this.data.filters.ciClass !== 'All') {
         ga.addParam('sysparm_ci_class', this.data.filters.ciClass);
         console.log('[ACC] Filtering by CI class:', this.data.filters.ciClass);
     }
-    
-    // Pass CI sys_ids filter if set (legacy support)
+
+    // Pass CI sys_ids filter if set
     if (this.data.filters.ciSysIds && this.data.filters.ciSysIds.length > 0) {
         ga.addParam('sysparm_ci_sys_ids', this.data.filters.ciSysIds.join(','));
         console.log('[ACC] Filtering by CI sys_ids:', this.data.filters.ciSysIds.length);
     }
-    
-    // ⬅️ NEW - Pass Dynatrace entity parameter (dtEntityId||ci_sys_id)
-    if (this.data.filters.dtEntities) {
-        ga.addParam('sysparm_dt_entities', this.data.filters.dtEntities);
-        console.log('[ACC] Using Dynatrace entities:', this.data.filters.dtEntities);
-    }
-    
-    console.log('[ACC] Calling DT_MetricsAPIHandlerv2 with time range:', this.data.filters.timeRange);
+
+    console.log('[ACC] Calling MetricsQueryEngineAjax with time range:', this.data.filters.timeRange);
     
     ga.getXMLAnswer(function(response) {
-        console.log('[ACC] ===== GLIDEAJAX RESPONSE DEBUG =====');
+        console.log('[ACC] ===== AJAX RESPONSE DEBUG =====');
         console.log('[ACC] Response type:', typeof response);
         console.log('[ACC] Response length:', response ? response.length : 0);
-        console.log('[ACC] First 1000 chars:', response ? response.substring(0, 1000) : 'null');
-        console.log('[ACC] ==========================================');
-        
+        console.log('[ACC] First 500 chars:', response ? response.substring(0, 500) : 'null');
+
         try {
             var result = JSON.parse(response);
-            
-            console.log('[ACC] ===== PARSED RESULT DEBUG =====');
+
+            console.log('[ACC] ===== PARSED RESULT =====');
             console.log('[ACC] result.success:', result.success);
-            console.log('[ACC] result.version:', result.version);
-            console.log('[ACC] result.source:', result.source);
-            console.log('[ACC] result.data length:', result.data ? result.data.length : 'undefined');
-            console.log('[ACC] result.alerts TYPE:', typeof result.alerts);
-            console.log('[ACC] result.alerts IS ARRAY:', Array.isArray(result.alerts));
-            console.log('[ACC] result.alerts LENGTH:', result.alerts ? result.alerts.length : 'undefined');
-            console.log('[ACC] result.anomalies LENGTH:', result.anomalies ? result.anomalies.length : 'undefined');
-            console.log('[ACC] Result top-level keys:', Object.keys(result));
-            
-            // *** CRITICAL - Show alerts array if it exists ***
-            if (result.alerts) {
-                console.log('[ACC] ===== ALERTS ARRAY DETAIL =====');
-                console.log('[ACC] Alerts count:', result.alerts.length);
-                if (result.alerts.length > 0) {
-                    console.log('[ACC] First alert:', JSON.stringify(result.alerts[0], null, 2));
-                    console.log('[ACC] Alert keys:', Object.keys(result.alerts[0]));
-                } else {
-                    console.log('[ACC] Alerts array is EMPTY');
-                }
-            } else {
-                console.error('[ACC] ❌ result.alerts is NULL or UNDEFINED!');
-            }
-            console.log('[ACC] ==============================');
-            
-            // ⬅️ UPDATED - Check for error response
+            console.log('[ACC] result.metrics length:', result.metrics ? result.metrics.length : 0);
+            console.log('[ACC] result.spikes length:', result.spikes ? result.spikes.length : 0);
+
+            // Check for error response
             if (!result.success) {
-                throw new Error(result.error || result.message || 'Unknown error from Dynatrace API');
+                throw new Error(result.error || 'Failed to load metrics');
             }
-            
-            // ⬅️ UPDATED - Extract metrics array from new v2 format
-            var metricsArray = result.data || [];
-            console.log('[ACC] Loaded', metricsArray.length, 'metrics from Dynatrace');
-            
-            // ⬅️ UPDATED - Extract alerts array
-            var alertsArray = result.alerts || [];
-            console.log('[ACC] ===== ALERT EXTRACTION =====');
-            console.log('[ACC] Extracted alerts count:', alertsArray.length);
-            
-            if (alertsArray.length > 0) {
-                console.log('[ACC] ✅ Alerts successfully extracted!');
-                console.log('[ACC] Sample alert number:', alertsArray[0].number);
-                console.log('[ACC] Sample alert CI:', alertsArray[0].ci_name);
-                console.log('[ACC] Sample alert severity:', alertsArray[0].severity_label);
-            } else {
-                console.warn('[ACC] ⚠️ No alerts in extracted array');
-            }
-            console.log('[ACC] ================================');
-            
-            // ⬅️ UPDATED - Extract entities info
-            if (result.entities) {
-                console.log('[ACC] Entity count:', Object.keys(result.entities).length);
-            }
-            
+
+            // Extract metrics array
+            var metricsArray = result.metrics || [];
+            console.log('[ACC] Loaded', metricsArray.length, 'metrics from ACC');
+
             // Store in dashboard data
             self.data.allMetrics = metricsArray;
-            self.data.alerts = alertsArray;
-            self.data.anomalies = result.anomalies || [];
-            
+            self.data.alerts = []; // Will be loaded separately via ACCAlertCorrelatorAjax if needed
+            self.data.anomalies = result.spikes || [];
+
             console.log('[ACC] ===== STORED IN DASHBOARD =====');
             console.log('[ACC] self.data.allMetrics:', self.data.allMetrics.length);
-            console.log('[ACC] self.data.alerts:', self.data.alerts.length);
-            console.log('[ACC] self.data.anomalies:', self.data.anomalies.length);
-            console.log('[ACC] ====================================');
-            
-            // Debug logging for metrics analysis
-            if (metricsArray.length > 0) {
-                console.log('[ACC] ===== DYNATRACE DATA ANALYSIS =====');
-                
-                var entityTypes = {};
-                var totalDataPoints = 0;
-                
-                for (var i = 0; i < metricsArray.length; i++) {
-                    var metric = metricsArray[i];
-                    
-                    // Count entity types
-                    if (metric.entityType) {
-                        entityTypes[metric.entityType] = (entityTypes[metric.entityType] || 0) + 1;
-                    }
-                    
-                    // Count data points
-                    if (metric.data && Array.isArray(metric.data)) {
-                        for (var d = 0; d < metric.data.length; d++) {
-                            if (metric.data[d].values && Array.isArray(metric.data[d].values)) {
-                                totalDataPoints += metric.data[d].values.length;
-                            }
-                        }
-                    }
-                }
-                
-                console.log('[ACC] Entity types:', entityTypes);
-                console.log('[ACC] Total data points:', totalDataPoints);
-                console.log('[ACC] ===== END ANALYSIS =====');
-            }
-            
+            console.log('[ACC] self.data.anomalies (spikes):', self.data.anomalies.length);
+
             // Apply filters and render
             self.applyFilters();
             self.data.loading = false;
             self.render();
             self.updateUI();
-            
-            // ⬅️ NEW - Auto-load AI insights if Now Assist is enabled
+
+            // Auto-load AI insights if Now Assist is enabled
             if (self.data.showNowAssist) {
                 self.loadAIInsights();
             }
-            
+
         } catch (error) {
             console.error('[ACC] Load error:', error);
             console.error('[ACC] Error stack:', error.stack);
             console.error('[ACC] Response preview:', response ? response.substring(0, 500) : 'null');
-            
+
             // Show user-friendly error
-            var errorMsg = 'Error loading Dynatrace metrics: ' + error.message;
-            if (response && response.indexOf('success') === -1) {
-                errorMsg += '\n\nThe Dynatrace API response may be malformed. Check system logs for details.';
-            }
-            alert(errorMsg);
-            
+            alert('Error loading ACC metrics: ' + error.message);
+
             self.data.loading = false;
             self.data.allMetrics = [];
             self.data.alerts = [];
@@ -998,12 +904,12 @@ loadAIInsights: function() {
     console.log('[ACC] Top issues:', metricsSummary.topIssues.length);
     
     // Call ACCMetricsAIAnalyzerAjax
-    var ga = new GlideAjax('ACCMetricsAIAnalyzerAjax');
-    ga.addParam('sysparm_name', 'analyzeMetrics');
-    
-    // *** FIX: Changed from 'sysparm_metrics_summary' to 'sysparm_metrics' ***
+    var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+    ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
+
+    // Pass metrics for analysis
     ga.addParam('sysparm_metrics', JSON.stringify(metricsSummary));
-    ga.addParam('sysparm_timeRange', this.data.filters.timeRange);
+    ga.addParam('sysparm_time_range', this.data.filters.timeRange);
     
     // *** NEW: Pass alerts for alert-metric correlation ***
     if (this.data.alerts && this.data.alerts.length > 0) {
@@ -2128,8 +2034,9 @@ getFilteredCINames: function() {
     
     _fetchCIDetails: function(ciSysId, callback) {
         var self = this;
-        var ga = new GlideAjax('ACCMetricsAIAnalyzerAjax');
-        ga.addParam('sysparm_name', 'ajaxGetCIDetails');
+        // Query CMDB directly for CI details
+        var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+        ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
         ga.addParam('sysparm_ci_sys_id', ciSysId);
         
         ga.getXMLAnswer(function(answer) {
@@ -2256,8 +2163,8 @@ _fetchSREInsights: function(ciSysId) {
     console.log('[SRE] - Metrics:', simplifiedMetrics.length);
     console.log('[SRE] - Time Range:', timeRange);
     
-    var ga = new GlideAjax('ACCMetricsAIAnalyzerAjax');
-    ga.addParam('sysparm_name', 'ajaxGetSREInsights');
+    var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+    ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
     ga.addParam('sysparm_ci_sys_id', ciSysId);
     ga.addParam('sysparm_time_range', timeRange);
     ga.addParam('sysparm_metrics', metricsJson);

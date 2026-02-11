@@ -917,6 +917,7 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
      CI SYS_ID EXTRACTION AND GLIDEAJAX INJECTION PATCH
      ============================================================================ -->
 <script>
+//<![CDATA[
 (function() {
     'use strict';
     window.CURRENT_CI_SYS_ID = null;
@@ -953,12 +954,14 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
         console.log('[GlideAjax] CI auto-injection patch installed');
     }
 })();
+//]]>
 </script>
 
 <!-- ============================================================================
      SRE INTELLIGENCE INITIALIZATION SCRIPT
      ============================================================================ -->
 <script>
+//<![CDATA[
 (function() {
     var initAttempts = 0;
     var maxAttempts = 60;
@@ -986,6 +989,7 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
         setTimeout(initializeSREIntelligence, 1000);
     }
 })();
+//]]>
 </script>
 
 </j:jelly>

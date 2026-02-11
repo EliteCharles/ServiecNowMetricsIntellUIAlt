@@ -7,7 +7,7 @@
 // Extends: AbstractAjaxProcessor
 
 var MetricsQueryEngineAjax = Class.create();
-MetricsQueryEngineAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
+MetricsQueryEngineAjax.prototype = Object.extendsObject(global.AbstractAjaxProcessor, {
 
     /**
      * Client-callable method that returns ACC metrics enriched with spike
