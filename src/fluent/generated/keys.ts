@@ -21,6 +21,14 @@ declare global {
                         table: 'sys_script_include'
                         id: 'd33097782b0ffa105d92f7634391bfc5'
                     }
+                    e101d7b82b0ffa105d92f7634391bf86: {
+                        table: 'sys_script_include'
+                        id: 'e101d7b82b0ffa105d92f7634391bf86'
+                    }
+                    fb51db7c2b0ffa105d92f7634391bf23: {
+                        table: 'sys_security_acl'
+                        id: 'fb51db7c2b0ffa105d92f7634391bf23'
+                    }
                     package_json: {
                         table: 'sys_module'
                         id: 'a0b2073aa95146c396235986ad870e5b'
@@ -36,6 +44,19 @@ declare global {
                         id: '0c61db7c2b0ffa105d92f7634391bf90'
                         key: {
                             sys_security_acl: 'fb51db7c2b0ffa105d92f7634391bf23'
+                            sys_user_role: {
+                                id: 'ed2c2a31eb12110045e1a5115206feaf'
+                                key: {
+                                    name: 'evt_mgmt_user'
+                                }
+                            }
+                        }
+                    },
+                    {
+                        table: 'sys_security_acl_role'
+                        id: '17c19bfc2b0ffa105d92f7634391bfda'
+                        key: {
+                            sys_security_acl: 'c3c15bfc2b0ffa105d92f7634391bfbd'
                             sys_user_role: {
                                 id: 'ed2c2a31eb12110045e1a5115206feaf'
                                 key: {
