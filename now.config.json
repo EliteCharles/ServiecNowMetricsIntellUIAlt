@@ -1,5 +1,9 @@
 {
     "scope": "x_snc_metricintelp",
     "scopeId": "6a7556dc2b4fb210c1def364b891bfcc",
-    "name": "metricintelplus"
+    "name": "metricintelplus",
+    "licensing": {
+        "enforceLicense": "none"
+    },
+    "description": "AI-powered metrics analysis and a new UI"
 }
