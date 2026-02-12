@@ -2200,26 +2200,30 @@ getFilteredCINames: function() {
             return;
         }
 
-        var ciSysId = this._getCISysIdFromURL();
-
-        if (!ciSysId) {
-            console.warn('[SRE] No CI sys_id found in URL parameters');
-            return;
-        }
-
         // Check if alerts are still loading
         if (this._alertsLoadPending) {
             console.log('[SRE] Alerts still loading, deferring initialization');
             return;
         }
 
+        // SMART CI SELECTION: URL → Single filtered → Worst CI
+        var ciSysId = this._selectCIForAnalysis();
+
+        if (!ciSysId) {
+            console.warn('[SRE] No CI available for analysis');
+            this._renderSREUnavailable('No CIs available for analysis');
+            return;
+        }
+
         console.log('[SRE] ========================================');
-        console.log('[SRE] Initializing SRE Intelligence v4.9.2');
-        console.log('[SRE] CI sys_id:', ciSysId);
+        console.log('[SRE] Initializing SRE Intelligence v5.0');
+        console.log('[SRE] Selected CI sys_id:', ciSysId);
+        console.log('[SRE] Selection method:', this._sreSelectionMethod || 'URL');
         console.log('[SRE] ========================================');
 
         this.sreInitialized = true;
         this.data.ci = this.data.ci || { sysId: ciSysId, name: '', className: '' };
+        this.data.sreCISysId = ciSysId;  // Store for reference
 
         // Use alerts already loaded by dashboard
         if (!this.data.alerts) {
@@ -2232,11 +2236,218 @@ getFilteredCINames: function() {
             console.log('[SRE] CI details loaded');
             console.log('[SRE] Alerts available: ' + self.data.alerts.length);
 
-            // Fetch SRE insights with existing alert data
+            // TRY NOW ASSIST FIRST, FALL BACK TO SRE RULES
+            self._fetchInsightsWithFallback(ciSysId);
             self._fetchSREInsights(ciSysId);
         });
     },
     
+    // ========================================================================
+    // SMART CI SELECTION FOR SRE INTELLIGENCE
+    // ========================================================================
+    // Selects the best CI for analysis using this priority:
+    // 1. CI from URL (explicit user intent)
+    // 2. Single CI from UI filter (user narrowed down to one)
+    // 3. "Worst" CI from visible CIs (auto-select most problematic)
+    // ========================================================================
+
+    _selectCIForAnalysis: function() {
+        // Priority 1: Check URL parameters first
+        var urlCI = this._getCISysIdFromURL();
+        if (urlCI) {
+            this._sreSelectionMethod = 'URL parameter';
+            console.log('[SRE] CI selected from URL:', urlCI);
+            return urlCI;
+        }
+
+        // Priority 2: Check if exactly ONE CI is filtered via UI
+        var visibleCIs = this._getVisibleCISysIds();
+        if (visibleCIs.length === 1) {
+            this._sreSelectionMethod = 'Single filtered CI';
+            console.log('[SRE] CI selected from filter (single):', visibleCIs[0]);
+            return visibleCIs[0];
+        }
+
+        // Priority 3: Multiple CIs visible - pick the "worst" one
+        if (visibleCIs.length > 1) {
+            var worstCI = this._selectWorstCI(visibleCIs);
+            if (worstCI) {
+                this._sreSelectionMethod = 'Auto-selected (most critical)';
+                console.log('[SRE] Auto-selected worst CI:', worstCI.sysId, 'Score:', worstCI.score);
+                return worstCI.sysId;
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Extract visible CI sys_ids from currently displayed metrics
+     */
+    _getVisibleCISysIds: function() {
+        var uniqueCIs = {};
+
+        if (this.data.metrics && this.data.metrics.length > 0) {
+            for (var i = 0; i < this.data.metrics.length; i++) {
+                var metric = this.data.metrics[i];
+                if (metric.ciSysIds && metric.ciSysIds.length > 0) {
+                    for (var j = 0; j < metric.ciSysIds.length; j++) {
+                        uniqueCIs[metric.ciSysIds[j]] = true;
+                    }
+                }
+                // Fallback: check data array
+                if (metric.data && metric.data.length > 0) {
+                    for (var k = 0; k < metric.data.length; k++) {
+                        if (metric.data[k].ciSysId) {
+                            uniqueCIs[metric.data[k].ciSysId] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return Object.keys(uniqueCIs);
+    },
+
+    /**
+     * Select the "worst" CI based on alert severity and metric health
+     * Returns: { sysId: string, score: number, reason: string }
+     */
+    _selectWorstCI: function(ciSysIds) {
+        console.log('[SRE] Analyzing', ciSysIds.length, 'CIs to find most critical...');
+
+        var ciScores = [];
+
+        for (var i = 0; i < ciSysIds.length; i++) {
+            var ciSysId = ciSysIds[i];
+            var score = 0;
+            var reasons = [];
+
+            // SCORE 1: Alert count and severity
+            var alertScore = this._calculateAlertScore(ciSysId);
+            score += alertScore.score;
+            if (alertScore.score > 0) reasons.push(alertScore.reason);
+
+            // SCORE 2: Metric threshold violations
+            var metricScore = this._calculateMetricScore(ciSysId);
+            score += metricScore.score;
+            if (metricScore.score > 0) reasons.push(metricScore.reason);
+
+            // SCORE 3: Anomaly count (if available)
+            var anomalyScore = this._calculateAnomalyScore(ciSysId);
+            score += anomalyScore.score;
+            if (anomalyScore.score > 0) reasons.push(anomalyScore.reason);
+
+            console.log('[SRE] CI', ciSysId, 'Score:', score, '→', reasons.join(', '));
+
+            ciScores.push({
+                sysId: ciSysId,
+                score: score,
+                reason: reasons.join(', ') || 'Normal'
+            });
+        }
+
+        // Sort by score (highest first)
+        ciScores.sort(function(a, b) { return b.score - a.score; });
+
+        // Return highest score, or first CI if all scores are 0
+        return ciScores[0];
+    },
+
+    _calculateAlertScore: function(ciSysId) {
+        var score = 0;
+        var alertCount = 0;
+        var criticalCount = 0;
+
+        if (this.data.allAlerts) {
+            for (var i = 0; i < this.data.allAlerts.length; i++) {
+                var alert = this.data.allAlerts[i];
+                if (alert.cmdb_ci_sys_id === ciSysId) {
+                    alertCount++;
+                    // Severity: 1=Critical, 2=Major, 3=Minor, 4=Warning, 5=Info
+                    var severity = parseInt(alert.severity) || 5;
+                    if (severity === 1) {
+                        criticalCount++;
+                        score += 50;  // Critical alerts are heavily weighted
+                    } else if (severity === 2) {
+                        score += 25;  // Major
+                    } else if (severity === 3) {
+                        score += 10;  // Minor
+                    } else {
+                        score += 5;   // Warning/Info
+                    }
+                }
+            }
+        }
+
+        var reason = '';
+        if (criticalCount > 0) {
+            reason = criticalCount + ' critical alert' + (criticalCount > 1 ? 's' : '');
+        } else if (alertCount > 0) {
+            reason = alertCount + ' alert' + (alertCount > 1 ? 's' : '');
+        }
+
+        return { score: score, reason: reason };
+    },
+
+    _calculateMetricScore: function(ciSysId) {
+        var score = 0;
+        var thresholdViolations = 0;
+
+        // Check metrics for this CI
+        if (this.data.metrics) {
+            for (var i = 0; i < this.data.metrics.length; i++) {
+                var metric = this.data.metrics[i];
+
+                // Check if this metric belongs to the CI
+                var belongsToCI = false;
+                if (metric.ciSysIds && metric.ciSysIds.indexOf(ciSysId) !== -1) {
+                    belongsToCI = true;
+                }
+
+                if (belongsToCI) {
+                    // Check if metric has threshold violations
+                    var level = this.getAlertLevel(metric);
+                    if (level === 'critical') {
+                        thresholdViolations++;
+                        score += 30;
+                    } else if (level === 'warning') {
+                        thresholdViolations++;
+                        score += 15;
+                    }
+                }
+            }
+        }
+
+        var reason = thresholdViolations > 0
+            ? thresholdViolations + ' metric threshold violation' + (thresholdViolations > 1 ? 's' : '')
+            : '';
+
+        return { score: score, reason: reason };
+    },
+
+    _calculateAnomalyScore: function(ciSysId) {
+        var score = 0;
+        var anomalyCount = 0;
+
+        // Check anomalies (if available in data.anomalies)
+        if (this.data.anomalies) {
+            for (var i = 0; i < this.data.anomalies.length; i++) {
+                var anomaly = this.data.anomalies[i];
+                if (anomaly.cmdb_ci_sys_id === ciSysId) {
+                    anomalyCount++;
+                    score += 20;
+                }
+            }
+        }
+
+        var reason = anomalyCount > 0
+            ? anomalyCount + ' anomal' + (anomalyCount > 1 ? 'ies' : 'y')
+            : '';
+
+        return { score: score, reason: reason };
+    },
+
     _getCISysIdFromURL: function() {
         var urlParams = new URLSearchParams(window.location.search);
         
@@ -2310,10 +2521,106 @@ getFilteredCINames: function() {
     },
     
     // ========================================================================
+    // NOW ASSIST → SRE RULES FALLBACK FRAMEWORK
+    // ========================================================================
+    // Attempts Now Assist first (AI-powered insights), falls back to SRE rules
+    // ========================================================================
+
+    _fetchInsightsWithFallback: function(ciSysId) {
+        var self = this;
+
+        console.log('[SRE] ===== INSIGHT GENERATION START =====');
+        console.log('[SRE] CI sys_id:', ciSysId);
+        console.log('[SRE] Trying Now Assist first...');
+
+        // PHASE 1: Try Now Assist (AI-powered analysis)
+        this._fetchNowAssistInsights(ciSysId, function(nowAssistResult) {
+
+            if (nowAssistResult.success) {
+                // Now Assist succeeded - use AI insights
+                console.log('[SRE] ✓ Now Assist insights received');
+                self.sreInsightsData = nowAssistResult.data;
+                self.sreInsightsData.analysisType = 'Now Assist AI';
+                self.sreInsightsLoaded = true;
+                self.updateUI();
+
+            } else {
+                // Now Assist failed/unavailable - fall back to SRE rules
+                console.log('[SRE] Now Assist not available:', nowAssistResult.message);
+                console.log('[SRE] Falling back to SRE rules engine...');
+
+                // PHASE 2: Use SRE rules-based analysis
+                self._fetchSREInsights(ciSysId);
+            }
+        });
+    },
+
+    /**
+     * Fetch insights from Now Assist (AI-powered)
+     * PLACEHOLDER: To be implemented with actual Now Assist API integration
+     */
+    _fetchNowAssistInsights: function(ciSysId, callback) {
+        var self = this;
+
+        // TODO: Implement Now Assist API integration
+        // This is a placeholder that always fails gracefully
+
+        console.log('[NOW_ASSIST] Checking Now Assist availability...');
+
+        // Simulate async check
+        setTimeout(function() {
+
+            // PLACEHOLDER: Always return "not configured" for now
+            // Tomorrow we'll add actual Now Assist API calls here
+            var result = {
+                success: false,
+                message: 'Now Assist not configured (placeholder)',
+                data: null
+            };
+
+            /* FUTURE IMPLEMENTATION:
+
+            var ga = new GlideAjax('x_snc_metricintelp.ACCNowAssistAnalyzer');
+            ga.addParam('sysparm_name', 'getNowAssistInsights');
+            ga.addParam('sysparm_ci_sys_id', ciSysId);
+            ga.addParam('sysparm_metrics', JSON.stringify(self.data.metrics));
+            ga.addParam('sysparm_alerts', JSON.stringify(self.data.alerts));
+            ga.addParam('sysparm_time_range', self.data.filters.timeRange);
+
+            ga.getXMLAnswer(function(response) {
+                try {
+                    var nowAssistData = JSON.parse(response);
+                    if (nowAssistData.success) {
+                        callback({
+                            success: true,
+                            data: nowAssistData.insights
+                        });
+                    } else {
+                        callback({
+                            success: false,
+                            message: nowAssistData.error || 'Now Assist returned error'
+                        });
+                    }
+                } catch (e) {
+                    callback({
+                        success: false,
+                        message: 'Failed to parse Now Assist response'
+                    });
+                }
+            });
+
+            */
+
+            callback(result);
+
+        }, 100);  // Small delay to simulate async call
+    },
+
+    // ========================================================================
     // REMOVED v4.9.1: _fetchAlerts() method - no longer needed!
     // Alerts are now provided by the main dashboard query via self.data.alerts
     // ========================================================================
-    
+
 _fetchSREInsights: function(ciSysId) {
     var self = this;
     var timeRange = this.data.filters ? this.data.filters.timeRange : '24h';
@@ -2425,9 +2732,10 @@ _fetchSREInsights: function(ciSysId) {
         try {
             if (answer && answer !== 'null' && answer !== '') {
                 self.sreInsightsData = JSON.parse(answer);
+                self.sreInsightsData.analysisType = 'SRE Rules Engine';  // Mark as rules-based
                 self.sreInsightsLoaded = true;
-                
-                console.log('[SRE] ✓ SRE Insights loaded');
+
+                console.log('[SRE] ✓ SRE Rules Insights loaded');
                 console.log('[SRE] Success:', self.sreInsightsData.success);
                 
                 if (self.sreInsightsData.probableCause) {
@@ -2459,6 +2767,27 @@ _fetchSREInsights: function(ciSysId) {
     });
 },
     
+    /**
+     * Render unavailable message for SRE Intelligence
+     */
+    _renderSREUnavailable: function(message) {
+        var section = document.getElementById('now-assist-section');
+        if (!section) return;
+
+        var html = '<div class="sre-unavailable" style="padding: 20px; text-align: center; color: #7D8791;">';
+        html += '<div style="font-size: 48px; margin-bottom: 16px;">🔍</div>';
+        html += '<div style="font-size: 16px; margin-bottom: 8px; font-weight: 500;">SRE Intelligence Unavailable</div>';
+        html += '<div style="font-size: 14px; opacity: 0.8;">' + message + '</div>';
+
+        // Show selection method if available
+        if (this._sreSelectionMethod) {
+            html += '<div style="font-size: 12px; margin-top: 16px; opacity: 0.6;">Selection method: ' + this._sreSelectionMethod + '</div>';
+        }
+
+        html += '</div>';
+        section.innerHTML = html;
+    },
+
     _refreshSREIntelSection: function() {
         var section = document.getElementById('now-assist-section');
         if (section && typeof this.renderNowAssistSection === 'function') {
@@ -3066,7 +3395,14 @@ _renderRadialDial: function(value, percentage, cssClass, label) {
         parts.push('<span class="sre-title">SRE Intelligence</span>');
         parts.push(this._renderStatusBadge(healthStatus));
         parts.push('</div>');
-        parts.push('<div class="sre-subtitle">powered by Now Assist</div>');
+
+        // Show which analysis engine is being used
+        var analysisType = serverData.analysisType || 'SRE Rules Engine';
+        var subtitle = analysisType === 'Now Assist AI'
+            ? 'powered by Now Assist'
+            : 'powered by ' + analysisType;
+        parts.push('<div class="sre-subtitle">' + subtitle + '</div>');
+
         parts.push('</div>');
         
         parts.push('</div>');
