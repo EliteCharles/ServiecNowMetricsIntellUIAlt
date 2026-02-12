@@ -530,7 +530,7 @@ ACCAlertCorrelator.prototype = {
             number: gr.getValue('number'),
             sys_created_on: gr.getValue('sys_created_on'),
             sys_updated_on: gr.getValue('sys_updated_on'),
-            state: gr.getValue('state'),
+            state: gr.getDisplayValue('state'),
             severity: severity,
             severity_label: this._getSeverityLabel(severity.toString()),
             source: gr.getValue('source'),
