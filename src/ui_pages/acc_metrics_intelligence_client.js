@@ -150,14 +150,20 @@ var Dashboard = {
             console.log('[ACC] URL param: ci_class =', ciClass);
         }
         
+        // Support both singular and plural CI sys_id parameters
         var ciSysIds = urlParams.get('sysparm_ci_sys_ids');
+        var ciSysId = urlParams.get('sysparm_ci_sys_id');
+
         if (ciSysIds) {
-            this.data.filters.ciSysIds = ciSysIds.split(',').map(function(id) { 
-                return id.trim(); 
+            this.data.filters.ciSysIds = ciSysIds.split(',').map(function(id) {
+                return id.trim();
             });
             console.log('[ACC] URL param: ci_sys_ids =', this.data.filters.ciSysIds);
+        } else if (ciSysId) {
+            this.data.filters.ciSysIds = [ciSysId.trim()];
+            console.log('[ACC] URL param: ci_sys_id =', ciSysId);
         }
-        
+
         var startTime = urlParams.get('sysparm_start_time');
         var endTime = urlParams.get('sysparm_end_time');
         if (startTime && endTime) {
