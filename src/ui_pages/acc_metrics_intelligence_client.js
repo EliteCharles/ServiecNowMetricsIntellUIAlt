@@ -4566,7 +4566,9 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
     
     getFilteredAlerts: function() {
         var filtered = this.data.alerts.slice();
-        
+
+        console.log('[ACC] getFilteredAlerts: Starting with', filtered.length, 'alerts');
+
         if (!filtered || filtered.length === 0) return [];
         
         if (this.data.filters.searchQuery && this.data.filters.searchQuery.trim() !== '') {
@@ -4605,8 +4607,16 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
         }
         
         if (this.data.alertFilters.state) {
+            console.log('[ACC] Filtering by state:', this.data.alertFilters.state);
+            var beforeStateFilter = filtered.length;
+
             filtered = filtered.filter(function(alert) {
                 var alertState = alert.state;
+
+                // Debug first alert
+                if (filtered.length > 0 && alert === filtered[0]) {
+                    console.log('[ACC] First alert state:', alertState, 'type:', typeof alertState);
+                }
 
                 // Handle numeric state values from server (1=Open, 4=Closed, etc.)
                 if (alertState && !isNaN(alertState)) {
@@ -4621,6 +4631,8 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
 
                 return alertState === Dashboard.data.alertFilters.state;
             });
+
+            console.log('[ACC] State filter:', beforeStateFilter, '→', filtered.length);
         }
         
         if (this.data.alertFilters.type) {
@@ -4688,7 +4700,9 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
             if (aVal > bVal) return direction === 'asc' ? 1 : -1;
             return 0;
         });
-        
+
+        console.log('[ACC] getFilteredAlerts: Returning', filtered.length, 'alerts after all filters');
+
         return filtered;
     },
     
