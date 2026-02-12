@@ -925,20 +925,43 @@ loadData: function() {
  */
 loadAlerts: function() {
     var ciSysId = this._getCISysIdFromURL();
+    var ciSysIds = [];
 
-    if (!ciSysId) {
-        console.log('[ACC] No CI sys_id for alert loading, skipping');
+    if (ciSysId) {
+        // Single CI from URL parameter
+        ciSysIds = [ciSysId];
+        console.log('[ACC] Loading alerts for CI from URL:', ciSysId);
+    } else {
+        // No URL parameter - extract CI sys_ids from loaded metrics
+        console.log('[ACC] No URL CI parameter - extracting CIs from metrics');
+        var uniqueCIs = {};
+        if (this.data.allMetrics && this.data.allMetrics.length > 0) {
+            for (var i = 0; i < this.data.allMetrics.length; i++) {
+                var metric = this.data.allMetrics[i];
+                if (metric.ciSysId) {
+                    uniqueCIs[metric.ciSysId] = true;
+                }
+            }
+        }
+        ciSysIds = Object.keys(uniqueCIs);
+        console.log('[ACC] Found', ciSysIds.length, 'unique CIs in metrics');
+    }
+
+    if (ciSysIds.length === 0) {
+        console.log('[ACC] No CIs to load alerts for');
+        this.data.alerts = [];
         return;
     }
 
-    console.log('[ACC] Loading alerts for CI:', ciSysId);
+    console.log('[ACC] Loading alerts for', ciSysIds.length, 'CI(s)');
 
     var self = this;
     this._alertsLoadPending = true;
 
+    // Load alerts for all CIs (server will handle multiple CIs)
     var ga = new GlideAjax('x_snc_metricintelp.ACCAlertCorrelatorAjax');
     ga.addParam('sysparm_name', 'getAlertsWithCorrelation');
-    ga.addParam('sysparm_ci_sys_id', ciSysId);
+    ga.addParam('sysparm_ci_sys_ids', ciSysIds.join(','));
     ga.addParam('sysparm_time_range', this.data.filters.timeRange);
 
     ga.getXMLAnswer(function(response) {

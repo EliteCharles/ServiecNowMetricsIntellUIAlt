@@ -52,21 +52,30 @@ ACCAlertCorrelatorAjax.prototype = Object.extendsObject(global.AbstractAjaxProce
     getAlertsWithCorrelation: function() {
         var LOG_PREFIX = '[ACCAlertCorrelatorAjax]';
 
-        // --- Extract parameters ---
+        // --- Extract parameters - support both singular and plural ---
         var ciSysId = this.getParameter('sysparm_ci_sys_id');
+        var ciSysIds = this.getParameter('sysparm_ci_sys_ids');
         var timeRangeParam = this.getParameter('sysparm_time_range') || '24h';
         var startTime = this.getParameter('sysparm_start_time');
         var endTime = this.getParameter('sysparm_end_time');
         var metricsParam = this.getParameter('sysparm_metrics');
 
-        gs.info(LOG_PREFIX + ' Request - CI: ' + ciSysId + ', Range: ' + timeRangeParam);
+        // Build array of CI sys_ids
+        var ciArray = [];
+        if (ciSysIds) {
+            ciArray = ciSysIds.split(',');
+            gs.info(LOG_PREFIX + ' Request - CIs: ' + ciArray.length + ', Range: ' + timeRangeParam);
+        } else if (ciSysId) {
+            ciArray = [ciSysId];
+            gs.info(LOG_PREFIX + ' Request - CI: ' + ciSysId + ', Range: ' + timeRangeParam);
+        }
 
         // --- Validate required parameters ---
-        if (!ciSysId) {
-            gs.warn(LOG_PREFIX + ' Missing required parameter: sysparm_ci_sys_id');
+        if (ciArray.length === 0) {
+            gs.warn(LOG_PREFIX + ' Missing required parameter: sysparm_ci_sys_id or sysparm_ci_sys_ids');
             return JSON.stringify({
                 success: false,
-                error: 'Missing required parameter: sysparm_ci_sys_id',
+                error: 'Missing required parameter: sysparm_ci_sys_id or sysparm_ci_sys_ids',
                 alerts: [],
                 anomalies: [],
                 correlation: null,
@@ -102,30 +111,44 @@ ACCAlertCorrelatorAjax.prototype = Object.extendsObject(global.AbstractAjaxProce
             }
         }
 
-        // --- Execute alert query ---
+        // --- Execute alert query for all CIs ---
         var correlator = new x_snc_metricintelp.ACCAlertCorrelator();
-        var alertResult = correlator.queryAlerts(ciSysId, timeRange);
+        var allAlerts = [];
+        var allAnomalies = [];
+
+        for (var i = 0; i < ciArray.length; i++) {
+            var currentCI = ciArray[i].trim();
+            if (currentCI) {
+                var alertResult = correlator.queryAlerts(currentCI, timeRange);
+                if (alertResult.success) {
+                    allAlerts = allAlerts.concat(alertResult.alerts);
+                    allAnomalies = allAnomalies.concat(alertResult.anomalies);
+                }
+            }
+        }
+
+        gs.info(LOG_PREFIX + ' Combined alerts from ' + ciArray.length + ' CIs: ' + allAlerts.length + ' alerts');
 
         // --- Perform correlation if metrics provided ---
         var correlation = null;
-        if (metrics.length > 0 && alertResult.success) {
-            correlation = correlator.correlateAlertsWithMetrics(alertResult.alerts, metrics);
-        } else if (alertResult.success && alertResult.alerts.length > 0) {
+        if (metrics.length > 0 && allAlerts.length > 0) {
+            correlation = correlator.correlateAlertsWithMetrics(allAlerts, metrics);
+        } else if (allAlerts.length > 0) {
             // No metrics provided - return alert-only correlation
-            correlation = correlator.correlateAlertsWithMetrics(alertResult.alerts, []);
+            correlation = correlator.correlateAlertsWithMetrics(allAlerts, []);
         }
 
         // --- Build response ---
         var response = {
-            success: alertResult.success,
-            alerts: alertResult.alerts,
-            anomalies: alertResult.anomalies,
-            alert_count: alertResult.alerts.length,
-            anomaly_count: alertResult.anomalies.length,
+            success: true,
+            alerts: allAlerts,
+            anomalies: allAnomalies,
+            alert_count: allAlerts.length,
+            anomaly_count: allAnomalies.length,
             correlation: correlation,
-            summary: alertResult.summary,
-            time_range: alertResult.timeRange,
-            version: alertResult.version
+            summary: null,
+            time_range: timeRange,
+            version: '1.0'
         };
 
         gs.info(LOG_PREFIX + ' Response - Alerts: ' + response.alert_count +
