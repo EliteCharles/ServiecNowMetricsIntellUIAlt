@@ -75,4 +75,3 @@ ACCMetricsAIAnalyzerAjax.prototype = Object.extendsObject(global.AbstractAjaxPro
 
     type: 'ACCMetricsAIAnalyzerAjax'
 });
-ACCMetricsAIAnalyzerAjax.prototype.type = 'ACCMetricsAIAnalyzerAjax';
