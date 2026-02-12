@@ -1,6 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
 <j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
 
-<style>/*<![CDATA[*/
+<style>
 /* ============================================================================
    THEME SYSTEM - CSS Variables with Professional Color Palettes
    ============================================================================ */
@@ -421,9 +422,9 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-green); }
-/*]]>*/</style>
+</style>
 
-<style>/*<![CDATA[*/
+<style>
 /* ============================================================================
    SRE INTELLIGENCE v4.9 - WITH RADIAL PROGRESS STATS
    ============================================================================ */
@@ -896,12 +897,10 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 [data-theme="light"] .alert-pattern-stats .stat-item { background: rgba(241, 245, 249, 0.8); }
 [data-theme="light"] .alert-pattern-dominant { background: rgba(59, 130, 246, 0.06); }
 [data-theme="light"] .sre-alert-pattern-block { background: rgba(241, 245, 249, 0.6); }
-/*]]>*/</style>
+</style>
 
 <div class="dashboard-container">
-    <div id="header-section">
-        <div class="header"><div class="header-left"><h1>Metric Intelligence</h1></div></div>
-    </div>
+    <div id="header-section"></div>
     <div id="filter-section"></div>
     <div id="legend-section"></div>
 
@@ -911,23 +910,20 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
     <!-- Alerts Section -->
     <div id="alerts-section"></div>
 
-    <div id="metrics-grid" class="metrics-grid cols-4">
-        <div class="loading"><div class="spinner"></div><div>Loading metrics...</div></div>
-    </div>
+    <div id="metrics-grid" class="metrics-grid cols-4"></div>
 </div>
 
 <!-- ============================================================================
      CI SYS_ID EXTRACTION AND GLIDEAJAX INJECTION PATCH
      ============================================================================ -->
 <script>
-//<![CDATA[
 (function() {
     'use strict';
     window.CURRENT_CI_SYS_ID = null;
     var urlParams = new URLSearchParams(window.location.search);
     if (!window.CURRENT_CI_SYS_ID) {
         var paramNames = ['sys_id', 'sysparm_sys_id', 'ci', 'cmdb_ci', 'sysparm_ci', 'sysparm_ci_sys_id'];
-        for (var i = 0; i < paramNames.length; i++) {
+        for (var i = 0; i &lt; paramNames.length; i++) {
             var value = urlParams.get(paramNames[i]);
             if (value && value.length === 32) {
                 window.CURRENT_CI_SYS_ID = value;
@@ -957,20 +953,18 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
         console.log('[GlideAjax] CI auto-injection patch installed');
     }
 })();
-//]]>
 </script>
 
 <!-- ============================================================================
      SRE INTELLIGENCE INITIALIZATION SCRIPT
      ============================================================================ -->
 <script>
-//<![CDATA[
 (function() {
     var initAttempts = 0;
     var maxAttempts = 60;
     function initializeSREIntelligence() {
         initAttempts++;
-        if (typeof Dashboard !== 'undefined' && Dashboard.data && Dashboard.data.metrics && Dashboard.data.metrics.length > 0) {
+        if (typeof Dashboard !== 'undefined' &amp;&amp; Dashboard.data &amp;&amp; Dashboard.data.metrics &amp;&amp; Dashboard.data.metrics.length > 0) {
             console.log('[SRE Init] Dashboard ready with', Dashboard.data.metrics.length, 'metrics');
             if (typeof Dashboard.initializeCIAndAlerts === 'function') {
                 console.log('[SRE Init] Calling initializeCIAndAlerts...');
@@ -980,7 +974,7 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
             }
             return;
         }
-        if (initAttempts < maxAttempts) {
+        if (initAttempts &lt; maxAttempts) {
             setTimeout(initializeSREIntelligence, 500);
         } else {
             console.warn('[SRE Init] Timeout - run Dashboard.initializeCIAndAlerts() manually');
@@ -992,7 +986,6 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
         setTimeout(initializeSREIntelligence, 1000);
     }
 })();
-//]]>
 </script>
 
 </j:jelly>
