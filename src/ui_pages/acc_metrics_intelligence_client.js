@@ -2147,14 +2147,15 @@ getFilteredCINames: function() {
         }
         
         // Fallback to direct parameters
-        var paramNames = ['sys_id', 'sysparm_sys_id', 'ci', 'cmdb_ci', 'sysparm_ci'];
+        var paramNames = ['sys_id', 'sysparm_sys_id', 'ci', 'cmdb_ci', 'sysparm_ci', 'sysparm_ci_sys_id'];
         for (var i = 0; i < paramNames.length; i++) {
             var value = urlParams.get(paramNames[i]);
             if (value && value.length === 32) {
+                console.log('[ACC] CI sys_id extracted from param ' + paramNames[i] + ': ' + value);
                 return value;
             }
         }
-        
+
         return null;
     },
     
