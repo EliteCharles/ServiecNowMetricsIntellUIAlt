@@ -6402,5 +6402,5 @@ if (document.readyState === 'loading') {
 }
 
 // ============================================================================
-// END OF PART 3 - COMPLETE CLIENT SCRIPT FOR DYNATRACE V2
+// END OF PART 3 - COMPLETE CLIENT SCRIPT FOR ACC METRICS INTELLIGENCE
 // ============================================================================
