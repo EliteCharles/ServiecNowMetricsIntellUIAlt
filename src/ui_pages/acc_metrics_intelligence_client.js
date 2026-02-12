@@ -952,6 +952,7 @@ loadAlerts: function() {
 
     if (ciSysIds.length === 0) {
         console.log('[ACC] No CIs to load alerts for');
+        this.data.allAlerts = [];
         this.data.alerts = [];
         return;
     }
@@ -973,6 +974,7 @@ loadAlerts: function() {
         try {
             if (!response || response === 'null' || response.trim() === '') {
                 console.warn('[ACC] Empty alert response');
+                self.data.allAlerts = [];
                 self.data.alerts = [];
                 return;
             }
@@ -980,8 +982,12 @@ loadAlerts: function() {
             var result = JSON.parse(response);
 
             if (result.success && result.alerts) {
-                self.data.alerts = result.alerts;
-                console.log('[ACC] Loaded', self.data.alerts.length, 'alerts');
+                self.data.allAlerts = result.alerts;  // Store full unfiltered list
+                console.log('[ACC] Loaded', self.data.allAlerts.length, 'alerts (unfiltered)');
+
+                // Apply filters to match visible CIs
+                self.filterAlerts();
+                console.log('[ACC] Displaying', self.data.alerts.length, 'filtered alerts');
 
                 // Re-render UI to show alerts
                 self.updateUI();
@@ -992,10 +998,12 @@ loadAlerts: function() {
                 }
             } else {
                 console.warn('[ACC] Alert load failed:', result.error || 'Unknown error');
+                self.data.allAlerts = [];
                 self.data.alerts = [];
             }
         } catch (error) {
             console.error('[ACC] Error loading alerts:', error);
+            self.data.allAlerts = [];
             self.data.alerts = [];
         }
     });
@@ -1242,11 +1250,55 @@ applyFilters: function() {
     
     this.data.metrics = clonedMetrics;
     console.log('[ACC] Filtered to', this.data.metrics.length, 'metrics');
-    
+
     this.filterMetricHosts();
-    
+
     // ⬅️ NEW - Group metrics by name so multiple hosts appear on same graph
     this.groupMetricsByName();
+
+    // Filter alerts to match visible CIs
+    this.filterAlerts();
+},
+
+/**
+ * Filter alerts to match the currently visible CIs in metrics
+ */
+filterAlerts: function() {
+    if (!this.data.allAlerts || this.data.allAlerts.length === 0) {
+        this.data.alerts = [];
+        return;
+    }
+
+    // Extract unique CI sys_ids from currently visible metrics
+    var visibleCIs = {};
+    if (this.data.metrics && this.data.metrics.length > 0) {
+        for (var i = 0; i < this.data.metrics.length; i++) {
+            var metric = this.data.metrics[i];
+            if (metric.data && metric.data.length > 0) {
+                for (var j = 0; j < metric.data.length; j++) {
+                    if (metric.data[j].ciSysId) {
+                        visibleCIs[metric.data[j].ciSysId] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    var visibleCIArray = Object.keys(visibleCIs);
+    console.log('[ACC] Filtering alerts for', visibleCIArray.length, 'visible CIs');
+
+    // Filter alerts to only those belonging to visible CIs
+    var filteredAlerts = [];
+    for (var k = 0; k < this.data.allAlerts.length; k++) {
+        var alert = this.data.allAlerts[k];
+        // Check if alert's CI is in the visible CIs
+        if (alert.cmdb_ci && visibleCIs[alert.cmdb_ci]) {
+            filteredAlerts.push(alert);
+        }
+    }
+
+    this.data.alerts = filteredAlerts;
+    console.log('[ACC] Filtered alerts:', this.data.allAlerts.length, '→', this.data.alerts.length);
 },
     
     /**
