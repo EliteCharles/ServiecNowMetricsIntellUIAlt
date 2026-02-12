@@ -8,6 +8,7 @@ declare global {
                     '0c8157bc2b0ffa105d92f7634391bff4': {
                         table: 'sys_ui_page'
                         id: '0c8157bc2b0ffa105d92f7634391bff4'
+                        deleted: true
                     }
                     '1af11f302b4ffa105d92f7634391bf49': {
                         table: 'sys_scope_privilege'
@@ -36,6 +37,7 @@ declare global {
                     '5582c0092b0b3e105d92f7634391bf24': {
                         table: 'sys_ui_page'
                         id: '5582c0092b0b3e105d92f7634391bf24'
+                        deleted: true
                     }
                     '5af11f302b4ffa105d92f7634391bf85': {
                         table: 'sys_scope_privilege'
