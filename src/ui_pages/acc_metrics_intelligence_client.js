@@ -4606,7 +4606,19 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
         
         if (this.data.alertFilters.state) {
             filtered = filtered.filter(function(alert) {
-                var alertState = alert.state || (alert.state_value === '4' ? 'Closed' : 'Open');
+                var alertState = alert.state;
+
+                // Handle numeric state values from server (1=Open, 4=Closed, etc.)
+                if (alertState && !isNaN(alertState)) {
+                    var stateNum = parseInt(alertState);
+                    alertState = (stateNum === 4) ? 'Closed' : 'Open';
+                }
+
+                // Fallback if state is missing
+                if (!alertState) {
+                    alertState = 'Open';
+                }
+
                 return alertState === Dashboard.data.alertFilters.state;
             });
         }
