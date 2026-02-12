@@ -264,20 +264,12 @@ This is a ServiceNow scoped application. To contribute:
 
 ## 📜 License
 
-Proprietary - ServiceNow Internal Use
-
-## 🙏 Acknowledgments
-
-- **Based on**: Dynatrace Metrics Intelligence AI (v3.5)
-- **Adapted from**: x_snc_metric2ai (Karfana) query engine
-- **AI Framework**: ServiceNow Now Assist
-- **Built with**: Claude Code and Claude Sonnet 4.5
 
 ## 📞 Support
 
 For issues or questions:
-- Create an issue in this repository
-- Contact the ServiceNow development team
+
+
 
 ---
 
