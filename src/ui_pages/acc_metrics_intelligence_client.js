@@ -4575,13 +4575,19 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
     
     updateUI: function() {
         var grid = document.getElementById('metrics-grid');
+        if (!grid) {
+            console.error('[ACC] metrics-grid element not found in updateUI');
+            this._renderDashboardError('DOM Error', 'metrics-grid element is missing from the page. Check that the HTML template is rendering correctly.');
+            return;
+        }
+
         grid.className = 'metrics-grid cols-' + this.data.filters.columns;
-        
+
         var count = document.getElementById('metrics-count');
         if (count) {
             count.textContent = this.data.metrics.length + ' metrics';
         }
-        
+
         if (this.data.loading) {
             grid.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading metrics...</div></div>';
             return;
@@ -4605,18 +4611,18 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
         } else {
             this.applyCustomOrder();
             console.log('[ACC] Showing', this.data.metrics.length, 'metrics');
-            
+
             var html = '';
             for (var i = 0; i < this.data.metrics.length; i++) {
                 html += this.renderCard(this.data.metrics[i], i);
             }
             grid.innerHTML = html;
-            
+
             this.attachDragListeners();
-            
-            setTimeout(function() { 
+
+            setTimeout(function() {
                 console.log('[ACC] Drawing', Dashboard.data.metrics.length, 'charts');
-                Dashboard.drawCharts(); 
+                Dashboard.drawCharts();
             }, 100);
         }
         
