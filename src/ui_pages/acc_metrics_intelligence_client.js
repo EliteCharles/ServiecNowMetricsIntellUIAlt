@@ -1239,6 +1239,7 @@ applyFilters: function() {
             ciClass: original.ciClass,
             unit: original.unit,
             hosts: original.hosts ? original.hosts.slice() : [],
+            ciSysIds: original.ciSysIds ? original.ciSysIds.slice() : [],  // ⬅️ CRITICAL - Preserve CI sys_ids for alert filtering
             data: original.data ? JSON.parse(JSON.stringify(original.data)) : [],
             location: original.location,
             supportGroup: original.supportGroup,
@@ -1264,10 +1265,19 @@ applyFilters: function() {
  * Filter alerts to match the currently visible CIs in metrics
  */
 filterAlerts: function() {
-    if (!this.data.allAlerts || this.data.allAlerts.length === 0) {
-        this.data.alerts = [];
+    // If alerts haven't been loaded yet, don't filter (keep existing alerts)
+    if (!this.data.allAlerts) {
+        console.log('[ACC] filterAlerts: allAlerts not loaded yet, skipping filter');
         return;
     }
+
+    if (this.data.allAlerts.length === 0) {
+        this.data.alerts = [];
+        console.log('[ACC] filterAlerts: No alerts to filter');
+        return;
+    }
+
+    console.log('[ACC] filterAlerts: Starting with', this.data.allAlerts.length, 'total alerts');
 
     // Extract unique CI sys_ids from currently visible metrics
     var visibleCIs = {};
@@ -1285,7 +1295,16 @@ filterAlerts: function() {
     }
 
     var visibleCIArray = Object.keys(visibleCIs);
-    console.log('[ACC] Filtering alerts for', visibleCIArray.length, 'visible CIs');
+    console.log('[ACC] filterAlerts: Found', visibleCIArray.length, 'visible CIs:', visibleCIArray);
+
+    // Debug: Show first few alert CIs
+    var alertCIs = [];
+    for (var k = 0; k < Math.min(5, this.data.allAlerts.length); k++) {
+        if (this.data.allAlerts[k].cmdb_ci) {
+            alertCIs.push(this.data.allAlerts[k].cmdb_ci);
+        }
+    }
+    console.log('[ACC] filterAlerts: Sample alert CIs:', alertCIs);
 
     // Filter alerts to only those belonging to visible CIs
     var filteredAlerts = [];
