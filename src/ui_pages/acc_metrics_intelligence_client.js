@@ -42,7 +42,7 @@ var Dashboard = {
             direction: 'desc'
         },
         alertFilters: {
-            state: 'Open',
+            state: '',  // Empty = show all states (Open, Closed, Reopen, Flapping)
             severity: '',
             source: '',
             number: '',
