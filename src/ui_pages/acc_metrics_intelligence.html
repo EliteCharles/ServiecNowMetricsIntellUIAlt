@@ -925,7 +925,7 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
         var paramNames = ['sys_id', 'sysparm_sys_id', 'ci', 'cmdb_ci', 'sysparm_ci', 'sysparm_ci_sys_id'];
         for (var i = 0; i &lt; paramNames.length; i++) {
             var value = urlParams.get(paramNames[i]);
-            if (value && value.length === 32) {
+            if (value &amp;&amp; value.length === 32) {
                 window.CURRENT_CI_SYS_ID = value;
                 break;
             }
