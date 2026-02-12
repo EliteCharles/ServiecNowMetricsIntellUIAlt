@@ -39,6 +39,40 @@ ACCMetricsAIAnalyzerAjax.prototype = Object.extendsObject(global.AbstractAjaxPro
         }
     },
 
+    ajaxGetCIDetails: function() {
+        var ciSysId = this.getParameter('sysparm_ci_sys_id');
+
+        if (!ciSysId) {
+            return JSON.stringify({
+                success: false,
+                error: 'Missing CI sys_id parameter'
+            });
+        }
+
+        try {
+            var ci = new GlideRecord('cmdb_ci');
+            if (ci.get(ciSysId)) {
+                return JSON.stringify({
+                    success: true,
+                    sysId: ciSysId,
+                    name: ci.getValue('name') || 'Unknown CI',
+                    className: ci.sys_class_name.toString() || 'cmdb_ci'
+                });
+            } else {
+                return JSON.stringify({
+                    success: false,
+                    error: 'CI not found'
+                });
+            }
+        } catch (e) {
+            gs.error('[ACCMetricsAIAnalyzerAjax] Error fetching CI details: ' + e);
+            return JSON.stringify({
+                success: false,
+                error: e.toString()
+            });
+        }
+    },
+
     type: 'ACCMetricsAIAnalyzerAjax'
 });
 ACCMetricsAIAnalyzerAjax.prototype.type = 'ACCMetricsAIAnalyzerAjax';

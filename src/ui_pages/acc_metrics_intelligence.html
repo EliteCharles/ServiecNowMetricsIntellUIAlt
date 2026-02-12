@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
 
-<style>
+<style>/*<![CDATA[*/
 /* ============================================================================
    THEME SYSTEM - CSS Variables with Professional Color Palettes
    ============================================================================ */
@@ -422,9 +422,9 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-green); }
-</style>
+/*]]>*/</style>
 
-<style>
+<style>/*<![CDATA[*/
 /* ============================================================================
    SRE INTELLIGENCE v4.9 - WITH RADIAL PROGRESS STATS
    ============================================================================ */
@@ -897,10 +897,12 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 [data-theme="light"] .alert-pattern-stats .stat-item { background: rgba(241, 245, 249, 0.8); }
 [data-theme="light"] .alert-pattern-dominant { background: rgba(59, 130, 246, 0.06); }
 [data-theme="light"] .sre-alert-pattern-block { background: rgba(241, 245, 249, 0.6); }
-</style>
+/*]]>*/</style>
 
 <div class="dashboard-container">
-    <div id="header-section"></div>
+    <div id="header-section">
+        <div class="header"><div class="header-left"><h1>Metric Intelligence</h1></div></div>
+    </div>
     <div id="filter-section"></div>
     <div id="legend-section"></div>
 
@@ -910,7 +912,9 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
     <!-- Alerts Section -->
     <div id="alerts-section"></div>
 
-    <div id="metrics-grid" class="metrics-grid cols-4"></div>
+    <div id="metrics-grid" class="metrics-grid cols-4">
+        <div class="loading"><div class="spinner"></div><div>Loading metrics...</div></div>
+    </div>
 </div>
 
 <!-- ============================================================================

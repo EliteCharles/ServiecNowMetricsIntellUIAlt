@@ -488,37 +488,42 @@ var Dashboard = {
     },
     
     init: function() {
-        console.log('[ACC] Init starting...');
-        this.parseURLParams();
-        this.loadCustomOrder();
-        this.loadCustomSizes();
-        this.loadCustomChartTypes();
-        this.loadTheme();
-        
-        var savedNowAssist = localStorage.getItem('metric2ai_show_now_assist');
-        if (savedNowAssist !== null) {
-            this.data.showNowAssist = (savedNowAssist === 'true');
+        try {
+            console.log('[ACC] Init starting...');
+            this.parseURLParams();
+            this.loadCustomOrder();
+            this.loadCustomSizes();
+            this.loadCustomChartTypes();
+            this.loadTheme();
+
+            var savedNowAssist = localStorage.getItem('metric2ai_show_now_assist');
+            if (savedNowAssist !== null) {
+                this.data.showNowAssist = (savedNowAssist === 'true');
+            }
+
+            var savedNowAssistExpanded = localStorage.getItem('metric2ai_now_assist_expanded');
+            if (savedNowAssistExpanded !== null) {
+                this.data.isNowAssistExpanded = (savedNowAssistExpanded === 'true');
+            }
+            var savedAlerts = localStorage.getItem('metric2ai_show_alerts');
+            if (savedAlerts !== null) {
+                this.data.showAlerts = (savedAlerts === 'true');
+            }
+
+            var savedAlertsExpanded = localStorage.getItem('metric2ai_alerts_expanded');
+            if (savedAlertsExpanded !== null) {
+                this.data.isAlertsExpanded = (savedAlertsExpanded === 'true');
+            }
+
+            this.render();
+            this.updateClock();
+            this.intervals.clock = setInterval(function() { Dashboard.updateClock(); }, 1000);
+            this.createTimeSelectionTooltip();
+            this.loadData();
+        } catch (error) {
+            console.error('[ACC] Initialization error:', error);
+            this._renderDashboardError('Failed to Initialize Dashboard', error.message || 'An unexpected error occurred during initialization.');
         }
-        
-        var savedNowAssistExpanded = localStorage.getItem('metric2ai_now_assist_expanded');
-        if (savedNowAssistExpanded !== null) {
-            this.data.isNowAssistExpanded = (savedNowAssistExpanded === 'true');
-        }
-        var savedAlerts = localStorage.getItem('metric2ai_show_alerts');
-        if (savedAlerts !== null) {
-            this.data.showAlerts = (savedAlerts === 'true');
-        }
-        
-        var savedAlertsExpanded = localStorage.getItem('metric2ai_alerts_expanded');
-        if (savedAlertsExpanded !== null) {
-            this.data.isAlertsExpanded = (savedAlertsExpanded === 'true');
-        }
-        
-        this.render();
-        this.updateClock();
-        this.intervals.clock = setInterval(function() { Dashboard.updateClock(); }, 1000);
-        this.createTimeSelectionTooltip();
-        this.loadData();
     },
     
     loadCustomOrder: function() {
@@ -800,6 +805,7 @@ loadData: function() {
     this.updateUI();
 
     var self = this;
+    var timeoutId = null;
 
     // Call ACC Metrics Query Engine
     var ga = new GlideAjax('x_snc_metricintelp.MetricsQueryEngineAjax');
@@ -819,14 +825,32 @@ loadData: function() {
     }
 
     console.log('[ACC] Calling MetricsQueryEngineAjax with time range:', this.data.filters.timeRange);
-    
+
+    // Add 30-second timeout safety net
+    timeoutId = setTimeout(function() {
+        console.error('[ACC] Request timeout after 30 seconds');
+        self._renderDashboardError('Request Timeout', 'The metrics request took too long. Please try again.');
+        self.data.loading = false;
+    }, 30000);
+
     ga.getXMLAnswer(function(response) {
+        // Clear timeout on successful response
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+
         console.log('[ACC] ===== AJAX RESPONSE DEBUG =====');
         console.log('[ACC] Response type:', typeof response);
         console.log('[ACC] Response length:', response ? response.length : 0);
         console.log('[ACC] First 500 chars:', response ? response.substring(0, 500) : 'null');
 
         try {
+            // Guard against null/empty response
+            if (!response || response === 'null' || response.trim() === '') {
+                throw new Error('Empty response from server');
+            }
+
             var result = JSON.parse(response);
 
             console.log('[ACC] ===== PARSED RESULT =====');
@@ -858,6 +882,9 @@ loadData: function() {
             self.render();
             self.updateUI();
 
+            // Load alerts after metrics are loaded
+            self.loadAlerts();
+
             // Auto-load AI insights if Now Assist is enabled
             if (self.data.showNowAssist) {
                 self.loadAIInsights();
@@ -868,14 +895,69 @@ loadData: function() {
             console.error('[ACC] Error stack:', error.stack);
             console.error('[ACC] Response preview:', response ? response.substring(0, 500) : 'null');
 
-            // Show user-friendly error
-            alert('Error loading ACC metrics: ' + error.message);
+            // Show user-friendly in-page error instead of alert()
+            self._renderDashboardError('Error Loading Metrics', error.message || 'Failed to load ACC metrics. Please check your connection and try again.');
 
             self.data.loading = false;
             self.data.allMetrics = [];
             self.data.alerts = [];
             self.data.anomalies = [];
-            self.updateUI();
+        }
+    });
+},
+
+/**
+ * Load alerts via ACCAlertCorrelatorAjax
+ * Non-blocking - alerts are supplementary data
+ */
+loadAlerts: function() {
+    var ciSysId = this._getCISysIdFromURL();
+
+    if (!ciSysId) {
+        console.log('[ACC] No CI sys_id for alert loading, skipping');
+        return;
+    }
+
+    console.log('[ACC] Loading alerts for CI:', ciSysId);
+
+    var self = this;
+    this._alertsLoadPending = true;
+
+    var ga = new GlideAjax('x_snc_metricintelp.ACCAlertCorrelatorAjax');
+    ga.addParam('sysparm_name', 'getAlertsWithCorrelation');
+    ga.addParam('sysparm_ci_sys_id', ciSysId);
+    ga.addParam('sysparm_time_range', this.data.filters.timeRange);
+
+    ga.getXMLAnswer(function(response) {
+        self._alertsLoadPending = false;
+
+        try {
+            if (!response || response === 'null' || response.trim() === '') {
+                console.warn('[ACC] Empty alert response');
+                self.data.alerts = [];
+                return;
+            }
+
+            var result = JSON.parse(response);
+
+            if (result.success && result.alerts) {
+                self.data.alerts = result.alerts;
+                console.log('[ACC] Loaded', self.data.alerts.length, 'alerts');
+
+                // Re-render UI to show alerts
+                self.updateUI();
+
+                // If SRE Intelligence is enabled, re-initialize with alert data
+                if (self.data.showNowAssist && !self.sreInitialized) {
+                    self.initializeCIAndAlerts();
+                }
+            } else {
+                console.warn('[ACC] Alert load failed:', result.error || 'Unknown error');
+                self.data.alerts = [];
+            }
+        } catch (error) {
+            console.error('[ACC] Error loading alerts:', error);
+            self.data.alerts = [];
         }
     });
 },
@@ -1625,10 +1707,48 @@ groupMetricsByName: function() {
 // PART 2 of 3: Rendering Functions, UI Updates & Event Handlers
 // ============================================================================
 
+    _renderDashboardError: function(title, detail) {
+        var errorHtml = '<div class="loading" style="color: var(--accent-critical);">' +
+            '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
+            '<div style="font-size:18px;font-weight:600;margin-bottom:8px;">' + title + '</div>' +
+            '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">' + detail + '</div>' +
+            '<button onclick="Dashboard.loadData()" style="padding:10px 20px;background:var(--accent-blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;">Retry</button>' +
+            '</div>';
+
+        var grid = document.getElementById('metrics-grid');
+        if (grid) {
+            grid.innerHTML = errorHtml;
+        } else {
+            // Fallback to document.body if metrics-grid doesn't exist
+            if (document.body) {
+                document.body.innerHTML = '<div style="padding:40px;background:var(--bg-primary);color:var(--text-primary);font-family:sans-serif;">' + errorHtml + '</div>';
+            }
+        }
+    },
+
     render: function() {
-        document.getElementById('header-section').innerHTML = this.renderHeader();
-        document.getElementById('filter-section').innerHTML = this.renderFilters();
-        document.getElementById('legend-section').innerHTML = this.renderLegend();
+        var headerSection = document.getElementById('header-section');
+        var filterSection = document.getElementById('filter-section');
+        var legendSection = document.getElementById('legend-section');
+
+        if (headerSection) {
+            headerSection.innerHTML = this.renderHeader();
+        } else {
+            console.error('[ACC] header-section element not found');
+        }
+
+        if (filterSection) {
+            filterSection.innerHTML = this.renderFilters();
+        } else {
+            console.error('[ACC] filter-section element not found');
+        }
+
+        if (legendSection) {
+            legendSection.innerHTML = this.renderLegend();
+        } else {
+            console.error('[ACC] legend-section element not found');
+        }
+
         this.attachEventListeners();
         this.createTooltip();
     },
@@ -1963,38 +2083,44 @@ getFilteredCINames: function() {
     
     initializeCIAndAlerts: function() {
         var self = this;
-        
+
         if (this.sreInitialized) {
             console.log('[SRE] Already initialized, skipping');
             return;
         }
-        
+
         var ciSysId = this._getCISysIdFromURL();
-        
+
         if (!ciSysId) {
             console.warn('[SRE] No CI sys_id found in URL parameters');
             return;
         }
-        
+
+        // Check if alerts are still loading
+        if (this._alertsLoadPending) {
+            console.log('[SRE] Alerts still loading, deferring initialization');
+            return;
+        }
+
         console.log('[SRE] ========================================');
         console.log('[SRE] Initializing SRE Intelligence v4.9.2');
         console.log('[SRE] CI sys_id:', ciSysId);
         console.log('[SRE] ========================================');
-        
+
         this.sreInitialized = true;
         this.data.ci = this.data.ci || { sysId: ciSysId, name: '', className: '' };
-        
-        // ✅ v4.9.1 FIX: Use alerts already loaded by dashboard instead of making redundant AJAX call
+
+        // Use alerts already loaded by dashboard
         if (!this.data.alerts) {
             this.data.alerts = [];
         }
-        
+
         console.log('[SRE] Using alerts from dashboard: ' + this.data.alerts.length);
-        
+
         this._fetchCIDetails(ciSysId, function() {
             console.log('[SRE] CI details loaded');
             console.log('[SRE] Alerts available: ' + self.data.alerts.length);
-            
+
             // Fetch SRE insights with existing alert data
             self._fetchSREInsights(ciSysId);
         });
@@ -2034,24 +2160,38 @@ getFilteredCINames: function() {
     
     _fetchCIDetails: function(ciSysId, callback) {
         var self = this;
-        // Query CMDB directly for CI details
+        // Use lightweight ajaxGetCIDetails endpoint
         var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
-        ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
+        ga.addParam('sysparm_name', 'ajaxGetCIDetails');
         ga.addParam('sysparm_ci_sys_id', ciSysId);
-        
+
         ga.getXMLAnswer(function(answer) {
             try {
                 if (answer && answer !== 'null') {
-                    var ciDetails = JSON.parse(answer);
-                    self.data.ci = {
-                        sysId: ciSysId,
-                        name: ciDetails.name || '',
-                        className: ciDetails.className || ''
-                    };
-                    console.log('[SRE] CI loaded:', self.data.ci.name);
+                    var result = JSON.parse(answer);
+                    if (result.success) {
+                        self.data.ci = {
+                            sysId: result.sysId || ciSysId,
+                            name: result.name || 'Unknown CI',
+                            className: result.className || 'cmdb_ci'
+                        };
+                        console.log('[SRE] CI loaded:', self.data.ci.name);
+                    } else {
+                        console.error('[SRE] Failed to load CI details:', result.error);
+                        self.data.ci = {
+                            sysId: ciSysId,
+                            name: 'Unknown CI',
+                            className: 'cmdb_ci'
+                        };
+                    }
                 }
             } catch (e) {
                 console.error('[SRE] Error parsing CI details:', e);
+                self.data.ci = {
+                    sysId: ciSysId,
+                    name: 'Unknown CI',
+                    className: 'cmdb_ci'
+                };
             }
             if (callback) callback();
         });
@@ -4446,9 +4586,22 @@ _renderAlertPatternBlock: function(alerts, alertSummary, patterns) {
             grid.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading metrics...</div></div>';
             return;
         }
-        
+
         if (this.data.metrics.length === 0) {
-            grid.innerHTML = '<div class="loading"><div style="font-size:48px;margin-bottom:16px;"></div><div>No metrics found</div></div>';
+            var emptyStateHtml = '<div class="loading">' +
+                '<div style="font-size:48px;margin-bottom:16px;"></div>' +
+                '<div style="font-size:18px;font-weight:600;margin-bottom:12px;">No metrics found</div>' +
+                '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;max-width:500px;line-height:1.6;">' +
+                'No metrics matched your filters. Try:<br>' +
+                '• Checking if the CI sys_id is correct<br>' +
+                '• Adjusting the time range<br>' +
+                '• Verifying the ACC agent is collecting metrics<br>' +
+                '• Clearing filters to see all available metrics' +
+                '</div>' +
+                '<button onclick="Dashboard.loadData()" style="padding:10px 20px;background:var(--accent-blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px;">Retry</button>' +
+                '<button onclick="Dashboard.data.filters.ciClass=\'All\';Dashboard.data.filters.ciSysIds=[];Dashboard.data.filters.search=\'\';Dashboard.loadData();" style="padding:10px 20px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;cursor:pointer;font-size:14px;">Clear Filters</button>' +
+                '</div>';
+            grid.innerHTML = emptyStateHtml;
         } else {
             this.applyCustomOrder();
             console.log('[ACC] Showing', this.data.metrics.length, 'metrics');
