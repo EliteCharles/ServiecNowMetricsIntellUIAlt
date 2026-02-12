@@ -723,14 +723,21 @@ MetricsQueryEngine.prototype = {
                     resourceId: result.resourceId,
                     location: result.location,
                     supportGroup: result.supportGroup,
+                    ciSysIds: [],  // Track all unique CI sys_ids in this group
                     hosts: [],
                     data: []
                 };
             }
 
+            // Track unique CI sys_ids
+            if (result.ciSysId && grouped[key].ciSysIds.indexOf(result.ciSysId) === -1) {
+                grouped[key].ciSysIds.push(result.ciSysId);
+            }
+
             grouped[key].hosts.push(result.ciName);
             grouped[key].data.push({
                 host: result.ciName,
+                ciSysId: result.ciSysId,  // Include CI sys_id in data
                 values: result.values,
                 timestamps: result.timestamps,
                 current: result.lastValue,

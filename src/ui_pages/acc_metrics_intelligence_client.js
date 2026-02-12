@@ -938,8 +938,11 @@ loadAlerts: function() {
         if (this.data.allMetrics && this.data.allMetrics.length > 0) {
             for (var i = 0; i < this.data.allMetrics.length; i++) {
                 var metric = this.data.allMetrics[i];
-                if (metric.ciSysId) {
-                    uniqueCIs[metric.ciSysId] = true;
+                // Metrics have ciSysIds array (can contain multiple CIs per metric group)
+                if (metric.ciSysIds && metric.ciSysIds.length > 0) {
+                    for (var j = 0; j < metric.ciSysIds.length; j++) {
+                        uniqueCIs[metric.ciSysIds[j]] = true;
+                    }
                 }
             }
         }
