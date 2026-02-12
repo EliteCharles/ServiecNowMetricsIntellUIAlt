@@ -137,13 +137,16 @@ var Dashboard = {
     
     parseURLParams: function() {
         var urlParams = new URLSearchParams(window.location.search);
-        
+
+        console.log('[ACC] ===== PARSING URL PARAMETERS =====');
+        console.log('[ACC] Full URL:', window.location.href);
+
         var timeRange = urlParams.get('sysparm_time_range');
         if (timeRange) {
             this.data.filters.timeRange = timeRange;
             console.log('[ACC] URL param: time_range =', timeRange);
         }
-        
+
         var ciClass = urlParams.get('sysparm_ci_class');
         if (ciClass) {
             this.data.filters.ciClass = ciClass;
@@ -826,8 +829,12 @@ loadData: function() {
 
     // Pass CI sys_ids filter if set
     if (this.data.filters.ciSysIds && this.data.filters.ciSysIds.length > 0) {
-        ga.addParam('sysparm_ci_sys_ids', this.data.filters.ciSysIds.join(','));
+        var ciSysIdsParam = this.data.filters.ciSysIds.join(',');
+        ga.addParam('sysparm_ci_sys_ids', ciSysIdsParam);
         console.log('[ACC] Filtering by CI sys_ids:', this.data.filters.ciSysIds.length);
+        console.log('[ACC] CI sys_ids values:', ciSysIdsParam);
+    } else {
+        console.log('[ACC] NO CI sys_ids filter - will load all CIs');
     }
 
     console.log('[ACC] Calling MetricsQueryEngineAjax with time range:', this.data.filters.timeRange);
