@@ -1300,8 +1300,9 @@ filterAlerts: function() {
     // Debug: Show first few alert CIs
     var alertCIs = [];
     for (var k = 0; k < Math.min(5, this.data.allAlerts.length); k++) {
-        if (this.data.allAlerts[k].cmdb_ci) {
-            alertCIs.push(this.data.allAlerts[k].cmdb_ci);
+        // FIXED: Alert objects use cmdb_ci_sys_id, not cmdb_ci
+        if (this.data.allAlerts[k].cmdb_ci_sys_id) {
+            alertCIs.push(this.data.allAlerts[k].cmdb_ci_sys_id);
         }
     }
     console.log('[ACC] filterAlerts: Sample alert CIs:', alertCIs);
@@ -1310,8 +1311,8 @@ filterAlerts: function() {
     var filteredAlerts = [];
     for (var k = 0; k < this.data.allAlerts.length; k++) {
         var alert = this.data.allAlerts[k];
-        // Check if alert's CI is in the visible CIs
-        if (alert.cmdb_ci && visibleCIs[alert.cmdb_ci]) {
+        // FIXED: Check alert.cmdb_ci_sys_id (not alert.cmdb_ci) against visible CIs
+        if (alert.cmdb_ci_sys_id && visibleCIs[alert.cmdb_ci_sys_id]) {
             filteredAlerts.push(alert);
         }
     }
