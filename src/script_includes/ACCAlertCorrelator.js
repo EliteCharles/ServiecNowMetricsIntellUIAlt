@@ -429,11 +429,7 @@ ACCAlertCorrelator.prototype = {
         alertGR.addQuery('sys_created_on', '>=', timeInfo.start);
         alertGR.addQuery('sys_created_on', '<=', timeInfo.end);
 
-        // Filter for ACC-related sources using OR condition
-        var sourceOr = alertGR.addQuery('source', this.ACC_SOURCES[0]);
-        for (var s = 1; s < this.ACC_SOURCES.length; s++) {
-            sourceOr.addOrCondition('source', this.ACC_SOURCES[s]);
-        }
+        // NOTE: No source filter - show all alerts for this CI regardless of source
 
         alertGR.orderByDesc('sys_created_on');
         alertGR.setLimit(200);
@@ -443,7 +439,7 @@ ACCAlertCorrelator.prototype = {
             alerts.push(this._formatAlert(alertGR));
         }
 
-        gs.info(this.LOG_PREFIX + ' Found ' + alerts.length + ' ACC alerts');
+        gs.info(this.LOG_PREFIX + ' Found ' + alerts.length + ' alerts for CI ' + ciSysId);
         return alerts;
     },
 
