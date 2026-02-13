@@ -11,14 +11,18 @@ ACCMetricsAIAnalyzerAjax.prototype = Object.extendsObject(global.AbstractAjaxPro
     getSREIntelligenceInsights: function() {
         var ciSysId = this.getParameter('sysparm_ci_sys_id');
         var timeRange = this.getParameter('sysparm_time_range') || '24h';
-        var metricsJson = this.getParameter('sysparm_metrics');
+
+        // ✅ CRITICAL FIX: Force string conversion to prevent "Cannot read property 'toString'" errors
+        var metricsJson = String(this.getParameter('sysparm_metrics') || '[]');
 
         var metrics = [];
         if (metricsJson) {
             try {
                 metrics = JSON.parse(metricsJson);
+                gs.info('[ACCMetricsAIAnalyzerAjax] ✓ Successfully parsed ' + metrics.length + ' metrics');
             } catch (e) {
                 gs.error('[ACCMetricsAIAnalyzerAjax] Error parsing metrics: ' + e);
+                gs.error('[ACCMetricsAIAnalyzerAjax] Metrics JSON (first 500 chars): ' + metricsJson.substring(0, 500));
             }
         }
 

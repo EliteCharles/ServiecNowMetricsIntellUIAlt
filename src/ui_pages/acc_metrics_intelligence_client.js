@@ -2238,7 +2238,6 @@ getFilteredCINames: function() {
 
             // TRY NOW ASSIST FIRST, FALL BACK TO SRE RULES
             self._fetchInsightsWithFallback(ciSysId);
-            self._fetchSREInsights(ciSysId);
         });
     },
     
@@ -2557,63 +2556,94 @@ getFilteredCINames: function() {
 
     /**
      * Fetch insights from Now Assist (AI-powered)
-     * PLACEHOLDER: To be implemented with actual Now Assist API integration
+     * Calls the SRE Intelligence Ajax processor which has Now Assist built-in
      */
     _fetchNowAssistInsights: function(ciSysId, callback) {
         var self = this;
 
-        // TODO: Implement Now Assist API integration
-        // This is a placeholder that always fails gracefully
-
         console.log('[NOW_ASSIST] Checking Now Assist availability...');
+        console.log('[NOW_ASSIST] Calling ACCMetricsAIAnalyzerAjax (has Now Assist built-in)');
 
-        // Simulate async check
-        setTimeout(function() {
+        var timeRange = this.data.filters ? this.data.filters.timeRange : '24h';
 
-            // PLACEHOLDER: Always return "not configured" for now
-            // Tomorrow we'll add actual Now Assist API calls here
-            var result = {
-                success: false,
-                message: 'Now Assist not configured (placeholder)',
-                data: null
-            };
-
-            /* FUTURE IMPLEMENTATION:
-
-            var ga = new GlideAjax('x_snc_metricintelp.ACCNowAssistAnalyzer');
-            ga.addParam('sysparm_name', 'getNowAssistInsights');
-            ga.addParam('sysparm_ci_sys_id', ciSysId);
-            ga.addParam('sysparm_metrics', JSON.stringify(self.data.metrics));
-            ga.addParam('sysparm_alerts', JSON.stringify(self.data.alerts));
-            ga.addParam('sysparm_time_range', self.data.filters.timeRange);
-
-            ga.getXMLAnswer(function(response) {
+        // Build metrics payload (same as _fetchSREInsights)
+        var simplifiedMetrics = [];
+        if (this.data.metrics) {
+            for (var i = 0; i < this.data.metrics.length; i++) {
                 try {
-                    var nowAssistData = JSON.parse(response);
-                    if (nowAssistData.success) {
-                        callback({
-                            success: true,
-                            data: nowAssistData.insights
-                        });
-                    } else {
-                        callback({
-                            success: false,
-                            message: nowAssistData.error || 'Now Assist returned error'
-                        });
-                    }
+                    var m = this.data.metrics[i];
+                    simplifiedMetrics.push({
+                        name: m.name || '',
+                        current: m.current || m.avg || 0,
+                        avg: m.avg || 0,
+                        max: m.max || 0,
+                        min: m.min || 0,
+                        unit: m.unit || '',
+                        trend: m.trend || 'stable'
+                    });
                 } catch (e) {
+                    console.error('[NOW_ASSIST] Error processing metric:', e);
+                }
+            }
+        }
+
+        console.log('[NOW_ASSIST] Sending ' + simplifiedMetrics.length + ' metrics');
+
+        // Call the existing Ajax processor (which already has Now Assist integration via ACCMetricsAILLM)
+        var ga = new GlideAjax('x_snc_metricintelp.ACCMetricsAIAnalyzerAjax');
+        ga.addParam('sysparm_name', 'getSREIntelligenceInsights');
+        ga.addParam('sysparm_ci_sys_id', ciSysId);
+        ga.addParam('sysparm_metrics', JSON.stringify(simplifiedMetrics));
+        ga.addParam('sysparm_time_range', timeRange);
+
+        ga.getXMLAnswer(function(response) {
+            try {
+                if (!response || response === 'null' || response.trim() === '') {
+                    console.warn('[NOW_ASSIST] Empty response from server');
                     callback({
                         success: false,
-                        message: 'Failed to parse Now Assist response'
+                        message: 'Empty response from Now Assist check'
+                    });
+                    return;
+                }
+
+                var result = JSON.parse(response);
+
+                if (result.success && result.data) {
+                    // Check if Now Assist was actually used (look for attribution)
+                    var usedNowAssist = false;
+                    if (result.data.probableCause && result.data.probableCause.description) {
+                        usedNowAssist = result.data.probableCause.description.indexOf('[response from Now Assist]') !== -1;
+                    }
+
+                    if (usedNowAssist) {
+                        console.log('[NOW_ASSIST] ✓ Now Assist was used for analysis');
+                        callback({
+                            success: true,
+                            data: result.data
+                        });
+                    } else {
+                        console.log('[NOW_ASSIST] Now Assist not available, used SRE rules');
+                        callback({
+                            success: false,
+                            message: 'Now Assist not available (sn_one_extend.OneExtendUtil not found or API failed)'
+                        });
+                    }
+                } else {
+                    console.warn('[NOW_ASSIST] Server returned error:', result.error);
+                    callback({
+                        success: false,
+                        message: result.error || 'Server error'
                     });
                 }
-            });
-
-            */
-
-            callback(result);
-
-        }, 100);  // Small delay to simulate async call
+            } catch (e) {
+                console.error('[NOW_ASSIST] Error parsing response:', e);
+                callback({
+                    success: false,
+                    message: 'Failed to parse response: ' + e.message
+                });
+            }
+        });
     },
 
     // ========================================================================
