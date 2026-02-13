@@ -15,6 +15,17 @@ This ServiceNow scoped application (`x_snc_metricintelp`) integrates advanced AI
 - 🎨 **Multi-Theme UI** - Dark, Light, and InfiniteBlue themes
 - 🔄 **Real-time Analysis** - Current metrics assessment with historical comparison
 
+## 📢 Contribution Policy
+
+**This repository is open for viewing and learning, but not accepting contributions.**
+
+- ✅ You may **view, download, fork, and use** this code (subject to MIT License)
+- ✅ **Issues** are welcome for bug reports and suggestions
+- ❌ **Pull requests** are not being accepted at this time
+- ❌ This is a personal innovation project, not open for collaboration
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
+
 ## 🏗️ Architecture
 
 ```
@@ -269,13 +280,17 @@ ServiecNowMetricsIntellUIAlt/
 
 ## 🤝 Contributing
 
-This is a ServiceNow scoped application. To contribute:
-1. Fork the repository
-2. Create a feature branch
-3. Test in a ServiceNow dev instance
-4. Submit pull request with detailed description
+**This repository is not accepting contributions at this time.**
+
+This is a personal innovation project. While you're welcome to fork and modify the code for your own use, pull requests are not being accepted.
+
+For bug reports and suggestions, please open a GitHub Issue. See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
 
 ## 📜 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+You are free to use, modify, and distribute this software, subject to the terms of the MIT License.
 
 
 ## 📞 Support
