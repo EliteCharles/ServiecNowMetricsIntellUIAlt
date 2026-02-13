@@ -46,7 +46,7 @@ This ServiceNow scoped application (`x_snc_metricintelp`) integrates advanced AI
 
 ## 📦 Components
 
-### Script Includes (8 total)
+### Script Includes (9 total)
 
 #### Phase 1: AI Analysis Engine
 1. **ACCMetricsAIAnalyzerServer** (989 lines)
@@ -76,19 +76,24 @@ This ServiceNow scoped application (`x_snc_metricintelp`) integrates advanced AI
    - Client-callable Ajax processor
    - Method: `getMetricsWithInsights()`
 
+6. **MetricsAPIHandler** (3,407 bytes)
+   - API handler for metrics data retrieval
+   - Supports original UI page integration
+   - Method: `getMetrics()`
+
 #### Phase 3: Alert Correlation
-6. **ACCAlertCorrelator** (512 lines)
+7. **ACCAlertCorrelator** (512 lines)
    - Multi-source alert querying (ITOM Agent, ACC)
    - Temporal correlation (5-minute sliding window)
    - Burst and high-frequency detection
    - Method: `correlateAlertsWithMetrics(alerts, metrics)`
 
-7. **ACCAlertCorrelatorAjax** (139 lines)
+8. **ACCAlertCorrelatorAjax** (139 lines)
    - Client-callable Ajax processor
    - Method: `getAlertsWithCorrelation()`
 
 #### Phase 5: UI Ajax Processor
-8. **ACCMetricsAIAnalyzerAjax** (1,514 lines)
+9. **ACCMetricsAIAnalyzerAjax** (1,514 lines)
    - Client-callable Ajax processor for UI
    - Method: `getSREIntelligenceInsights()`
 
@@ -118,26 +123,27 @@ This ServiceNow scoped application (`x_snc_metricintelp`) integrates advanced AI
    - **Name**: Metric Intelligence Plus
    - **Scope**: `x_snc_metricintelp`
 
-#### 2. Import Script Includes (8 files)
+#### 2. Import Script Includes (9 files)
 For each Script Include in `src/script_includes/`:
 
 1. **Studio** → **Create Application File** → **Server Development** → **Script Include**
 2. **Name**: [Use filename without .js]
 3. **Client callable**:
-   - ✓ Yes: ACCMetricsAIAnalyzerAjax, MetricsQueryEngineAjax, ACCAlertCorrelatorAjax
+   - ✓ Yes: ACCMetricsAIAnalyzerAjax, MetricsQueryEngineAjax, ACCAlertCorrelatorAjax, MetricsAPIHandler
    - ✗ No: All others
 4. **Script**: Copy entire file contents
 5. **Submit**
 
 **Import Order (recommended):**
 1. MetricsQueryEngine
-2. ACCAlertCorrelator
-3. ACCMetricsAILLM
-4. ACCPatternAnalyzer
-5. ACCMetricsAIAnalyzerServer
-6. MetricsQueryEngineAjax
-7. ACCAlertCorrelatorAjax
-8. ACCMetricsAIAnalyzerAjax
+2. MetricsAPIHandler
+3. ACCAlertCorrelator
+4. ACCMetricsAILLM
+5. ACCPatternAnalyzer
+6. ACCMetricsAIAnalyzerServer
+7. MetricsQueryEngineAjax
+8. ACCAlertCorrelatorAjax
+9. ACCMetricsAIAnalyzerAjax
 
 #### 3. Import UI Page
 1. **Studio** → **Create Application File** → **User Interface** → **UI Page**
@@ -230,18 +236,25 @@ Supports multiple alert sources:
 ```
 ServiecNowMetricsIntellUIAlt/
 ├── src/
-│   ├── script_includes/          # 8 Script Includes
+│   ├── script_includes/          # 9 Script Includes
 │   │   ├── ACCMetricsAIAnalyzerServer.js
 │   │   ├── ACCMetricsAILLM.js
 │   │   ├── ACCPatternAnalyzer.js
 │   │   ├── MetricsQueryEngine.js
 │   │   ├── MetricsQueryEngineAjax.js
+│   │   ├── MetricsAPIHandler.js
 │   │   ├── ACCAlertCorrelator.js
 │   │   ├── ACCAlertCorrelatorAjax.js
 │   │   └── ACCMetricsAIAnalyzerAjax.js
-│   └── ui_pages/                 # UI Page
-│       ├── acc_metrics_intelligence.html
-│       └── acc_metrics_intelligence_client.js
+│   ├── ui_pages/                 # UI Pages
+│   │   ├── acc_metrics_intelligence.html
+│   │   ├── acc_metrics_intelligence_client.js
+│   │   ├── metric intell plus.html
+│   │   └── metric intell Plus_client.js
+│   ├── fluent/                   # ServiceNow Fluent CLI generated files
+│   │   └── generated/
+│   └── server/                   # Server scripts
+│       └── script.js
 ├── README.md
 ├── now.config.json              # ServiceNow CLI config
 └── package.json
@@ -274,6 +287,62 @@ For issues or questions:
 ---
 
 **Version**: 1.0.0
-**Last Updated**: February 11, 2026
+**Last Updated**: February 13, 2026
 **ServiceNow Scope**: x_snc_metricintelp
-**Total Code**: 11,413 lines (8 Script Includes + 1 UI Page)
+**Total Code**: 9 Script Includes + UI Pages
+
+---
+
+## ⚠️ IMPORTANT DISCLAIMER
+
+### Not an Official ServiceNow Product
+
+**This application is a custom innovation project and is NOT an official ServiceNow product, feature, or module.** It is not endorsed, supported, or maintained by ServiceNow, Inc.
+
+### No ServiceNow Support
+
+- ❌ This application is **NOT covered** by ServiceNow support agreements
+- ❌ ServiceNow Technical Support **will not** provide assistance with this application
+- ❌ This application is **NOT eligible** for ServiceNow support cases or incidents
+- ❌ ServiceNow does **NOT guarantee** compatibility with platform updates or upgrades
+
+### Use At Your Own Risk
+
+By installing or using this application, you acknowledge and accept that:
+
+1. **No Warranty**: This application is provided "AS IS" without warranty of any kind, express or implied
+2. **Your Responsibility**: You assume all risks associated with installation, configuration, and use
+3. **No Liability**: The creators and contributors are not liable for any damages, data loss, system failures, or business interruptions
+4. **Testing Required**: You must thoroughly test in a non-production environment before any production deployment
+5. **Instance Health**: This application may impact instance performance, stability, or security
+6. **Compliance**: You are responsible for ensuring this application meets your organization's security, privacy, and compliance requirements
+7. **Maintenance**: Updates, bug fixes, and enhancements are provided on a best-effort basis with no guarantees
+
+### Production Use Warning
+
+**⚠️ PRODUCTION DEPLOYMENT IS NOT RECOMMENDED WITHOUT EXTENSIVE TESTING**
+
+Before deploying to production:
+- ✅ Test thoroughly in a sub-production or development instance
+- ✅ Perform security review and vulnerability assessment
+- ✅ Validate against your organization's governance policies
+- ✅ Ensure proper backup and rollback procedures
+- ✅ Monitor resource consumption and performance impact
+- ✅ Review and approve with your ServiceNow administrator and security team
+
+### Custom Development
+
+This is a **custom-built innovation** created using ServiceNow development tools. It is:
+- Built by individuals for experimental and educational purposes
+- Subject to change without notice
+- Not part of the ServiceNow product roadmap
+- Not subject to ServiceNow's standard quality assurance processes
+- Not reviewed or certified by ServiceNow
+
+### Third-Party Integration Notice
+
+This application integrates with ServiceNow Now Assist and other platform capabilities. Changes to these ServiceNow platform features may break functionality without warning.
+
+---
+
+**By using this application, you acknowledge that you have read, understood, and agreed to these terms and disclaimers.**
