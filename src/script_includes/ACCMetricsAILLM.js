@@ -33,7 +33,19 @@ ACCMetricsAILLM.prototype = {
     initialize: function() {
         this.LOG_PREFIX = '[ACC LLM]';
         this.VA_CAPABILITY_ID = 'd82ff09efffc311063f5ffffffffffc5';
-        gs.debug(this.LOG_PREFIX + ' Initialized v1.0 (ACC description generator with metrics awareness)');
+
+        // TODO: FUTURE ENHANCEMENT - Custom Now Assist Skill
+        // Consider creating a custom Now Assist skill specifically for SRE/ITOM analysis
+        // This would allow:
+        //   - Domain-specific training on incident/alert/metric patterns
+        //   - Optimized prompts for root cause analysis
+        //   - Better understanding of infrastructure context
+        //   - Custom output format tailored to SRE workflows
+        // Research: Now Assist Skill Kit (NASK) or ServiceNow Professional Services
+        // Tables: sys_cs_genai_skill, sys_ai_capability
+        // See: FUTURE_ENHANCEMENTS.md for detailed plan
+
+        gs.debug(this.LOG_PREFIX + ' Initialized v1.1 (Enhanced prompts for better AI responses)');
     },
 
     /**
@@ -262,24 +274,50 @@ ACCMetricsAILLM.prototype = {
         }
 
         // ================================================================
-        // SECTION 7: Smart Instructions for AI
+        // SECTION 7: Enhanced AI Instructions (v1.1 - Improved Specificity)
         // ================================================================
-        prompt += '\nInstructions:\n';
-        prompt += '- Write 2-3 clear sentences summarizing what happened AND current status\n';
-        prompt += '- Use specific numbers and metric names from the data above\n';
-        prompt += '- Write for an SRE/L2/L3 engineer who needs actionable intelligence\n';
-        prompt += '- This data comes from Agent Client Collector (ACC) metrics, not an external APM tool\n\n';
+        prompt += '\n=== INSTRUCTIONS FOR AI ANALYSIS ===\n';
+        prompt += 'You are an expert SRE analyst reviewing a production system incident. Provide a detailed, actionable analysis in 3-4 sentences.\n\n';
 
-        prompt += 'CRITICAL - Address alert relevance based on current metrics:\n';
-        prompt += '- If alerts are OPEN but current metrics are NORMAL, state: "Alert remains open, but current metrics show [specific values] have returned to normal, suggesting the issue has self-resolved"\n';
-        prompt += '- If alerts are OPEN and metrics are STILL ELEVATED, state: "Issue is ongoing with [specific metrics] currently at [values], requiring immediate attention"\n';
-        prompt += '- If alerts are CLOSED and metrics are NORMAL, state: "Issue has been resolved with all metrics returning to baseline"\n';
-        prompt += '- If alerts are CLOSED but metrics are STILL ELEVATED, state: "Alerts resolved but [specific metrics] remain elevated at [values], monitoring recommended"\n\n';
+        prompt += 'REQUIRED ELEMENTS (YOU MUST INCLUDE ALL OF THESE):\n';
+        prompt += '1. SPECIFIC METRICS: Name the EXACT metrics showing anomalies with their names from the data above\n';
+        prompt += '   - BAD: "some metrics are elevated"\n';
+        prompt += '   - GOOD: "CPU usage, memory consumption, and response time"\n\n';
 
-        prompt += 'Format:\n';
-        prompt += '- Be factual and data-driven, not speculative\n';
-        prompt += '- Do NOT include attribution text - that will be added automatically\n';
-        prompt += '- Do NOT provide recommendations - focus on status assessment only\n';
+        prompt += '2. ACTUAL VALUES: Include SPECIFIC NUMBERS from the data above\n';
+        prompt += '   - BAD: "metrics are high"\n';
+        prompt += '   - GOOD: "CPU spiked to 95% (baseline: 40%), response time increased to 3.2s (baseline: 200ms)"\n\n';
+
+        prompt += '3. TIMELINE CONTEXT: Reference the actual timeframes from the data\n';
+        prompt += '   - Include when the issue started and current duration\n';
+        prompt += '   - Mention if this is ongoing vs resolved\n\n';
+
+        prompt += '4. ROOT CAUSE HYPOTHESIS: Based on the pattern, suggest 1-2 LIKELY causes\n';
+        prompt += '   - High CPU + Normal Memory → CPU-bound process, algorithmic issue, infinite loop\n';
+        prompt += '   - High Memory + Normal CPU → Memory leak, cache growth, unclosed connections\n';
+        prompt += '   - High CPU + High Memory → Resource exhaustion, traffic spike, runaway process\n';
+        prompt += '   - Slow response + Normal resources → Database latency, network congestion, external API delay\n';
+        prompt += '   - High errors + Normal resources → Application bug, integration failure, bad deployment\n\n';
+
+        prompt += '5. CURRENT STATUS: Based on the "Current Metrics Status" section above, state:\n';
+        prompt += '   - If alerts OPEN + metrics NORMAL: "Alert remains open, but [metric names] have returned to normal ([specific values]), suggesting self-resolution"\n';
+        prompt += '   - If alerts OPEN + metrics ELEVATED: "Issue ongoing with [metric names] currently at [values], requiring immediate attention"\n';
+        prompt += '   - If alerts CLOSED + metrics NORMAL: "Issue resolved with all metrics returned to baseline"\n';
+        prompt += '   - If alerts CLOSED + metrics ELEVATED: "Alerts closed but [metric names] remain elevated at [values], monitoring recommended"\n\n';
+
+        prompt += 'FORMATTING RULES:\n';
+        prompt += '- Start with the MOST CRITICAL finding (highest severity or biggest deviation)\n';
+        prompt += '- Use EXACT metric names from the data - never generalize or say "various metrics"\n';
+        prompt += '- Compare current values to baselines when provided\n';
+        prompt += '- Write for a senior engineer who needs to take immediate action\n';
+        prompt += '- Be concise but specific - every number and metric name matters\n';
+        prompt += '- Do NOT include attribution text (will be added automatically)\n';
+        prompt += '- Do NOT provide recommendations (focus on status assessment only)\n\n';
+
+        prompt += 'EXAMPLE OF EXCELLENT RESPONSE:\n';
+        prompt += '"Critical resource exhaustion detected on Windows Server between 14:59 and 12:04 (21 hours). CPU usage spiked to 95% (baseline: 40%) with sustained elevation, while memory climbed to 14.2GB (85% of capacity). 19 critical alerts fired for CPU threshold violations, with 4 alerts still open. Pattern suggests memory leak causing CPU thrash - likely runaway application process or unclosed database connections. Current metrics show CPU remains elevated at 92% and memory at 13.8GB, requiring immediate investigation of running processes and application logs."\n\n';
+
+        prompt += 'NOW GENERATE YOUR ANALYSIS FOLLOWING THE ABOVE REQUIREMENTS:\n';
 
         return prompt;
     },
